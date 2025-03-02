@@ -3,6 +3,7 @@ import React from 'react';
 import { useTest } from '@/context/TestContext';
 import AnswerOption from './AnswerOption';
 import { Bookmark, BookmarkCheck } from 'lucide-react';
+import MathJax from './MathJax';
 
 interface QuestionCardProps {
   questionNumber: number;
@@ -29,18 +30,29 @@ const QuestionCard = ({ questionNumber }: QuestionCardProps) => {
   
   const letterMap = ['A', 'B', 'C', 'D'];
   
+  // Sample math formula for the first question
+  const mathFormula = questionNumber === 1 ? 
+    `Câu ${questionNumber}
+    <div style="margin-top: 10px;">
+      Cho hàm số $y = \\frac{x^2 - 2m(m+1)x + 2m^3 + m^2 + 1}{x-m}$ có đồ thị $(C_m)$ (m là tham số thực). Gọi A là điểm thỏa mãn vừa là điểm cực đại của $(C_m)$ ứng với một giá trị m vừa là điểm cực tiểu của $(C_m)$ ứng với giá trị khác của m. Giá trị của a để khoảng cách từ A đến đường thẳng $(d) : x - (a + 1)y + a = 0$ đạt giá trị lớn nhất là
+    </div>` : 
+    `Câu ${questionNumber}
+    <div style="margin-top: 10px;">
+      ${currentQuestion.text}
+    </div>`;
+
   return (
     <div className="animate-slide-in">
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-xl font-medium text-foreground">
-          Question {questionNumber}
+          Câu {questionNumber}
         </h2>
         <button
           onClick={handleToggleMark}
           className={`p-2 rounded-full transition-colors duration-300 ${
             isMarked ? 'text-test-marked' : 'text-muted-foreground hover:text-test-marked'
           }`}
-          aria-label={isMarked ? "Unmark question" : "Mark question for review"}
+          aria-label={isMarked ? "Bỏ đánh dấu câu hỏi" : "Đánh dấu câu hỏi để xem lại"}
         >
           {isMarked ? (
             <BookmarkCheck className="w-5 h-5" />
@@ -51,9 +63,7 @@ const QuestionCard = ({ questionNumber }: QuestionCardProps) => {
       </div>
       
       <div className="glass-panel rounded-xl p-6 mb-6">
-        <p className="text-lg font-medium text-foreground mb-2">
-          {currentQuestion.text}
-        </p>
+        <MathJax formula={mathFormula} />
       </div>
       
       <div className="space-y-3">

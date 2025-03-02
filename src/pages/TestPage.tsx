@@ -1,24 +1,37 @@
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTest } from '@/context/TestContext';
 import QuestionCard from '@/components/QuestionCard';
 import QuestionNavigation from '@/components/QuestionNavigation';
 import TestTimer from '@/components/TestTimer';
 import { Button } from '@/components/ui/button';
-import { ChevronLeft, ChevronRight, AlertTriangle } from 'lucide-react';
+import { ChevronLeft, ChevronRight, AlertTriangle, ArrowLeft, Maximize, Search, ZoomIn, ZoomOut, List } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { useState } from 'react';
 
 const TestPage = () => {
   const navigate = useNavigate();
   const { currentTest, navigateToQuestion, endTest, isTimeUp } = useTest();
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [studentName, setStudentName] = useState('Nguyễn Hữu Tiến');
   
   useEffect(() => {
     // Redirect to homepage if no test is in progress
     if (!currentTest) {
       navigate('/');
+    }
+    
+    // Get user info from session storage
+    const userStr = sessionStorage.getItem('currentUser');
+    if (userStr) {
+      try {
+        const user = JSON.parse(userStr);
+        if (user.username === 'student') {
+          setStudentName('Nguyễn Hữu Tiến');
+        }
+      } catch (error) {
+        console.error('Error parsing user data:', error);
+      }
     }
   }, [currentTest, navigate]);
   
@@ -53,12 +66,46 @@ const TestPage = () => {
   
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-b from-blue-50 to-white">
-      <header className="sticky top-0 z-10 bg-white/80 backdrop-blur-md border-b border-border/50 shadow-sm">
+      <header className="sticky top-0 z-10 bg-white shadow-sm">
         <div className="container mx-auto px-4 py-3 flex items-center justify-between">
-          <h1 className="text-xl font-medium text-foreground">
-            {currentTest.test.title}
-          </h1>
-          <TestTimer />
+          <div className="flex items-center">
+            <Button variant="ghost" onClick={() => navigate(-1)} className="mr-2">
+              <ArrowLeft className="w-5 h-5" />
+              <span className="ml-1">Quay lại</span>
+            </Button>
+            <h1 className="text-lg font-medium">
+              Thí sinh: {studentName}
+            </h1>
+          </div>
+          
+          <div className="flex items-center space-x-4">
+            <TestTimer />
+            
+            <div className="flex items-center space-x-2">
+              <Button variant="ghost" size="icon" className="rounded-full">
+                <Search className="w-5 h-5" />
+              </Button>
+              <Button variant="ghost" size="icon" className="rounded-full">
+                <ZoomIn className="w-5 h-5" />
+              </Button>
+              <Button variant="ghost" size="icon" className="rounded-full">
+                <ZoomOut className="w-5 h-5" />
+              </Button>
+              <Button variant="ghost" size="icon" className="rounded-full">
+                <List className="w-5 h-5" />
+              </Button>
+              <Button variant="ghost" size="icon" className="rounded-full">
+                <Maximize className="w-5 h-5" />
+              </Button>
+            </div>
+            
+            <Button 
+              onClick={confirmEndTest}
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+            >
+              Nộp bài
+            </Button>
+          </div>
         </div>
       </header>
       
@@ -74,15 +121,7 @@ const TestPage = () => {
                 className="btn-nav btn-secondary"
               >
                 <ChevronLeft className="w-4 h-4 mr-1" />
-                Previous
-              </Button>
-              
-              <Button
-                onClick={confirmEndTest}
-                variant="outline"
-                className="btn-nav"
-              >
-                Submit Test
+                Câu trước
               </Button>
               
               <Button
@@ -90,14 +129,14 @@ const TestPage = () => {
                 disabled={currentQuestionIndex === totalQuestions - 1}
                 className="btn-nav btn-primary"
               >
-                Next
+                Câu sau
                 <ChevronRight className="w-4 h-4 ml-1" />
               </Button>
             </div>
           </div>
         </main>
         
-        <aside className="hidden lg:block w-80 h-[calc(100vh-64px)] sticky top-16">
+        <aside className="w-80 h-[calc(100vh-64px)] sticky top-16 border-l border-gray-200">
           <QuestionNavigation />
         </aside>
       </div>
@@ -105,9 +144,9 @@ const TestPage = () => {
       <Dialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
         <DialogContent className="glass-panel">
           <DialogHeader>
-            <DialogTitle className="text-xl font-semibold">Submit Test?</DialogTitle>
+            <DialogTitle className="text-xl font-semibold">Nộp bài?</DialogTitle>
             <DialogDescription>
-              Are you sure you want to submit the test? You won't be able to change any answers after submission.
+              Bạn có chắc chắn muốn nộp bài? Bạn sẽ không thể thay đổi câu trả lời sau khi nộp.
             </DialogDescription>
           </DialogHeader>
           
@@ -116,11 +155,11 @@ const TestPage = () => {
               <AlertTriangle className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
               <div>
                 <p className="text-sm font-medium text-amber-800">
-                  You've answered {currentTest.userAnswers.filter(a => a.selectedOptionId !== null).length} out of {totalQuestions} questions.
+                  Bạn đã trả lời {currentTest.userAnswers.filter(a => a.selectedOptionId !== null).length} trên tổng số {totalQuestions} câu hỏi.
                 </p>
                 {currentTest.userAnswers.filter(a => a.isMarked).length > 0 && (
                   <p className="text-sm text-amber-700 mt-1">
-                    You have {currentTest.userAnswers.filter(a => a.isMarked).length} marked questions.
+                    Bạn có {currentTest.userAnswers.filter(a => a.isMarked).length} câu hỏi đã đánh dấu.
                   </p>
                 )}
               </div>
@@ -129,10 +168,10 @@ const TestPage = () => {
           
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowConfirmDialog(false)}>
-              Continue Test
+              Tiếp tục làm bài
             </Button>
             <Button onClick={handleEndTest} className="btn-primary">
-              Submit Test
+              Nộp bài
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -141,15 +180,15 @@ const TestPage = () => {
       <Dialog open={isTimeUp} onOpenChange={() => {}}>
         <DialogContent className="glass-panel">
           <DialogHeader>
-            <DialogTitle className="text-xl font-semibold">Time's Up!</DialogTitle>
+            <DialogTitle className="text-xl font-semibold">Hết giờ!</DialogTitle>
             <DialogDescription>
-              Your time for this test has ended. Your answers have been automatically submitted.
+              Thời gian làm bài của bạn đã kết thúc. Bài làm của bạn đã được nộp tự động.
             </DialogDescription>
           </DialogHeader>
           
           <DialogFooter>
             <Button onClick={handleEndTest} className="btn-primary">
-              View Results
+              Xem kết quả
             </Button>
           </DialogFooter>
         </DialogContent>
