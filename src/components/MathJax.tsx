@@ -1,5 +1,5 @@
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 
 interface MathJaxProps {
   formula: string;
@@ -12,6 +12,8 @@ declare global {
 }
 
 const MathJax: React.FC<MathJaxProps> = ({ formula }) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     // Load MathJax script if not already loaded
     if (!window.MathJax) {
@@ -20,31 +22,47 @@ const MathJax: React.FC<MathJaxProps> = ({ formula }) => {
       script.async = true;
       script.id = 'MathJax-script';
       
-      document.head.appendChild(script);
-      
-      script.onload = () => {
-        window.MathJax = {
-          tex: {
-            inlineMath: [['$', '$'], ['\\(', '\\)']],
-            displayMath: [['$$', '$$'], ['\\[', '\\]']],
-            processEscapes: true
-          },
-          options: {
-            enableMenu: false
+      // Configure MathJax before loading the script
+      window.MathJax = {
+        tex: {
+          inlineMath: [['$', '$'], ['\\(', '\\)']],
+          displayMath: [['$$', '$$'], ['\\[', '\\]']],
+          processEscapes: true
+        },
+        options: {
+          enableMenu: false
+        },
+        startup: {
+          pageReady: () => {
+            console.log('MathJax is ready');
+            // Initial typeset is handled by MathJax itself after loading
           }
-        };
-        
-        window.MathJax.typeset();
+        }
       };
-    } else {
-      // If MathJax is already loaded, just typeset the current formula
-      if (window.MathJax.typeset) {
-        window.MathJax.typeset();
+      
+      document.head.appendChild(script);
+    } else if (window.MathJax.typesetPromise) {
+      // If MathJax is already loaded and properly initialized with typesetPromise
+      try {
+        window.MathJax.typesetPromise([containerRef.current]).catch((err: any) => {
+          console.error('MathJax typesetting failed:', err);
+        });
+      } catch (error) {
+        console.error('Error calling MathJax.typesetPromise:', error);
       }
+    } else if (window.MathJax.typeset) {
+      // Fallback if typesetPromise is not available but typeset is
+      try {
+        window.MathJax.typeset([containerRef.current]);
+      } catch (error) {
+        console.error('Error calling MathJax.typeset:', error);
+      }
+    } else {
+      console.warn('MathJax is not properly initialized yet');
     }
   }, [formula]);
 
-  return <div dangerouslySetInnerHTML={{ __html: formula }} />;
+  return <div ref={containerRef} dangerouslySetInnerHTML={{ __html: formula }} />;
 };
 
 export default MathJax;

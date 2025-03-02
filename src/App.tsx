@@ -15,6 +15,9 @@ import TeacherHome from "./pages/TeacherHome";
 import AdminHome from "./pages/AdminHome";
 import TestConfirmation from "./pages/TestConfirmation";
 import RequireAuth from "./components/RequireAuth";
+import CandidateListPage from "./pages/CandidateListPage";
+import ExamListPage from "./pages/ExamListPage";
+import DetailedResultsPage from "./pages/DetailedResultsPage";
 
 const queryClient = new QueryClient();
 
@@ -60,6 +63,22 @@ const App = () => (
             } />
             
             <Route path="/results" element={<ResultsPage />} />
+            
+            {/* New routes for candidate list, exam list, and detailed results */}
+            <Route path="/candidate-list" element={
+              <RequireAuth allowedRoles={["admin", "teacher"]}>
+                <CandidateListPage />
+              </RequireAuth>
+            } />
+            
+            <Route path="/exam-list" element={
+              <RequireAuth allowedRoles={["admin", "teacher"]}>
+                <ExamListPage />
+              </RequireAuth>
+            } />
+            
+            <Route path="/detailed-results/:id" element={<DetailedResultsPage />} />
+            
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
