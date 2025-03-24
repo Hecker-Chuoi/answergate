@@ -10,6 +10,7 @@ const StudentHome = () => {
   
   const handleLogout = () => {
     sessionStorage.removeItem('currentUser');
+    sessionStorage.removeItem('authToken');
     toast.success('Đăng xuất thành công');
     navigate('/login');
   };
@@ -19,11 +20,11 @@ const StudentHome = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
-      <header className="bg-white shadow-sm">
+    <div className="min-h-screen bg-gradient-to-b from-red-50 to-white">
+      <header className="bg-military-red shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
-          <h1 className="text-2xl font-bold text-gray-900">Trang chủ thí sinh</h1>
-          <Button variant="outline" onClick={handleLogout} className="flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-white">Trang chủ thí sinh</h1>
+          <Button variant="outline" onClick={handleLogout} className="flex items-center gap-2 bg-white text-military-red hover:bg-gray-100">
             <LogOut className="h-4 w-4" />
             Đăng xuất
           </Button>
@@ -32,7 +33,7 @@ const StudentHome = () => {
       
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="bg-white shadow overflow-hidden sm:rounded-lg">
-          <div className="px-4 py-5 sm:px-6">
+          <div className="px-4 py-5 sm:px-6 bg-military-red bg-opacity-10">
             <h2 className="text-lg font-medium text-gray-900">Bài kiểm tra sắp tới</h2>
           </div>
           <div className="border-t border-gray-200">
@@ -60,7 +61,7 @@ const StudentHome = () => {
             </dl>
           </div>
           <div className="px-4 py-5 sm:px-6 flex justify-end">
-            <Button onClick={startTest} className="flex items-center gap-2">
+            <Button onClick={startTest} className="flex items-center gap-2 bg-military-red hover:bg-military-dark-red">
               <CheckCircle className="h-4 w-4" />
               Bắt đầu làm bài
             </Button>

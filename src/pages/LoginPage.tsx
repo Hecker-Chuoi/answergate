@@ -3,59 +3,89 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
-
-// This would typically come from an API, but we'll mock it for now
-const MOCK_USERS = [
-  { username: 'student', password: 'password', role: 'student' },
-  { username: 'teacher', password: 'password', role: 'teacher' },
-  { username: 'admin', password: 'password', role: 'admin' }
-];
+import { authService } from '@/services/authService';
 
 const LoginPage = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    const user = MOCK_USERS.find(
-      user => user.username === username && user.password === password
-    );
-    
-    if (user) {
-      // Store user info in sessionStorage (would use proper auth in a real app)
-      sessionStorage.setItem('currentUser', JSON.stringify({
-        username: user.username,
-        role: user.role
-      }));
-      
-      toast.success(`Đăng nhập thành công với quyền ${user.role}`);
-      
-      // Redirect based on role
-      switch(user.role) {
-        case 'student':
-          navigate('/student-home');
-          break;
-        case 'teacher':
-          navigate('/teacher-home');
-          break;
-        case 'admin':
-          navigate('/admin-home');
-          break;
-        default:
-          navigate('/');
-      }
-    } else {
-      toast.error('Sai tên đăng nhập hoặc mật khẩu');
+    if (!username || !password) {
+      toast.error('Vui lòng nhập tên đăng nhập và mật khẩu');
+      return;
     }
+    
+    setIsLoading(true);
+    
+    try {
+      // Gọi API đăng nhập
+      const response = await authService.login(username, password);
+      
+      if (response.statusCode === 200 && response.result.authenticated) {
+        // Lưu token vào sessionStorage
+        sessionStorage.setItem('authToken', response.result.token);
+        
+        // Giải mã JWT token để lấy thông tin người dùng
+        // Chú ý: Trong thực tế nên sử dụng thư viện như jwt-decode
+        // Nhưng ở đây chúng ta giả định thông tin role được truyền vào
+        // Trong ứng dụng thực tế, bạn cần giải mã token hoặc gọi API để lấy thông tin người dùng
+        
+        // MOCK: Giả định thông tin người dùng (thực tế sẽ lấy từ token)
+        const userRole = getUserRoleFromToken(response.result.token);
+        
+        sessionStorage.setItem('currentUser', JSON.stringify({
+          username: username,
+          role: userRole
+        }));
+        
+        toast.success(`Đăng nhập thành công với quyền ${userRole}`);
+        
+        // Chuyển hướng dựa trên vai trò
+        switch(userRole) {
+          case 'student':
+            navigate('/student-home');
+            break;
+          case 'teacher':
+            navigate('/teacher-home');
+            break;
+          case 'admin':
+            navigate('/admin-home');
+            break;
+          default:
+            navigate('/');
+        }
+      } else {
+        toast.error(response.message || 'Đăng nhập thất bại');
+      }
+    } catch (error) {
+      console.error('Lỗi đăng nhập:', error);
+      toast.error('Lỗi kết nối đến máy chủ');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+  // Hàm mô phỏng việc lấy role từ token (thực tế sẽ giải mã JWT)
+  // Trong thực tế, bạn sẽ sử dụng thư viện để giải mã token
+  const getUserRoleFromToken = (token: string): string => {
+    // MOCK: Giả lập việc xác định role dựa trên username
+    // Trong thực tế sẽ lấy từ payload của token
+    if (username.includes('student')) return 'student';
+    if (username.includes('teacher')) return 'teacher';
+    if (username.includes('admin')) return 'admin';
+    
+    return 'student'; // mặc định
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-blue-50 to-white">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-military-light-red to-white">
       <div className="w-full max-w-md p-8 space-y-8 bg-white rounded-xl shadow-lg">
         <div className="text-center">
-          <h1 className="text-3xl font-bold text-gray-900">Đăng nhập</h1>
+          <h1 className="text-3xl font-bold text-military-dark-red">Đăng nhập</h1>
           <p className="mt-2 text-gray-600">Đăng nhập để truy cập hệ thống</p>
         </div>
         
@@ -72,7 +102,7 @@ const LoginPage = () => {
                 required
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary"
+                className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-military-red focus:border-military-red"
               />
             </div>
             
@@ -87,14 +117,18 @@ const LoginPage = () => {
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary"
+                className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-military-red focus:border-military-red"
               />
             </div>
           </div>
 
           <div>
-            <Button type="submit" className="w-full flex justify-center py-2 px-4">
-              Đăng nhập
+            <Button 
+              type="submit" 
+              disabled={isLoading}
+              className="w-full flex justify-center py-2 px-4 bg-military-red hover:bg-military-dark-red text-white transition-colors"
+            >
+              {isLoading ? 'Đang xử lý...' : 'Đăng nhập'}
             </Button>
           </div>
           

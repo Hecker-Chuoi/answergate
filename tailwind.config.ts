@@ -1,4 +1,3 @@
-
 import type { Config } from "tailwindcss";
 
 export default {
@@ -71,6 +70,11 @@ export default {
 					'timer-normal': '#60a5fa',
 					'timer-warning': '#f59e0b',
 					'timer-danger': '#ef4444'
+				},
+				military: {
+					'red': '#ea384c',
+					'dark-red': '#c81e2e',
+					'light-red': '#f26172'
 				}
 			},
 			borderRadius: {

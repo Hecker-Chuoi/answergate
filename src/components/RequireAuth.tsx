@@ -1,55 +1,69 @@
 
 import React, { useEffect, useState } from 'react';
-import { Navigate, useLocation } from 'react-router-dom';
+import { Navigate } from 'react-router-dom';
+import { authService } from '@/services/authService';
 
-type Props = {
+interface RequireAuthProps {
   children: React.ReactNode;
-  allowedRoles?: string[];
-};
+  allowedRoles: string[];
+}
 
-const RequireAuth = ({ children, allowedRoles }: Props) => {
-  const location = useLocation();
-  const [currentUser, setCurrentUser] = useState<{ username: string, role: string } | null>(null);
-  const [loading, setLoading] = useState(true);
+const RequireAuth: React.FC<RequireAuthProps> = ({ children, allowedRoles }) => {
+  const [isLoading, setIsLoading] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [userRole, setUserRole] = useState<string | null>(null);
 
   useEffect(() => {
-    // Check if user is logged in
-    const userStr = sessionStorage.getItem('currentUser');
-    if (userStr) {
-      try {
-        const user = JSON.parse(userStr);
-        setCurrentUser(user);
-      } catch (error) {
-        console.error('Error parsing user data:', error);
+    const validateAuth = async () => {
+      const userStr = sessionStorage.getItem('currentUser');
+      const token = sessionStorage.getItem('authToken');
+      
+      if (!userStr || !token) {
+        setIsAuthenticated(false);
+        setIsLoading(false);
+        return;
       }
-    }
-    setLoading(false);
+      
+      try {
+        // Kiểm tra token có hợp lệ không
+        const isValid = await authService.validateToken(token);
+        
+        if (isValid) {
+          const user = JSON.parse(userStr);
+          setUserRole(user.role);
+          setIsAuthenticated(true);
+        } else {
+          // Token không hợp lệ, đăng xuất người dùng
+          sessionStorage.removeItem('currentUser');
+          sessionStorage.removeItem('authToken');
+          setIsAuthenticated(false);
+        }
+      } catch (error) {
+        console.error('Lỗi xác thực:', error);
+        setIsAuthenticated(false);
+      }
+      
+      setIsLoading(false);
+    };
+    
+    validateAuth();
   }, []);
 
-  if (loading) {
-    return <div>Đang tải...</div>;
+  if (isLoading) {
+    return <div className="flex h-screen items-center justify-center">
+      <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-military-red"></div>
+    </div>;
   }
 
-  if (!currentUser) {
-    // Redirect to login if not logged in
-    return <Navigate to="/login" state={{ from: location }} replace />;
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
   }
 
-  if (allowedRoles && !allowedRoles.includes(currentUser.role)) {
-    // Redirect to appropriate home page if role doesn't match
-    switch (currentUser.role) {
-      case 'student':
-        return <Navigate to="/student-home" replace />;
-      case 'teacher':
-        return <Navigate to="/teacher-home" replace />;
-      case 'admin':
-        return <Navigate to="/admin-home" replace />;
-      default:
-        return <Navigate to="/" replace />;
-    }
+  if (userRole && allowedRoles.includes(userRole)) {
+    return <>{children}</>;
   }
 
-  return <>{children}</>;
+  return <Navigate to="/" replace />;
 };
 
 export default RequireAuth;
