@@ -1,9 +1,8 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
-import { Search, Download, UserPlus } from 'lucide-react';
+import { Search, Download, UserPlus, LogOut } from 'lucide-react';
 
 const CandidateListPage = () => {
   const navigate = useNavigate();
@@ -18,7 +17,6 @@ const CandidateListPage = () => {
   const [currentUser, setCurrentUser] = useState<{ role: string } | null>(null);
 
   useEffect(() => {
-    // Get user info from session storage
     const userStr = sessionStorage.getItem('currentUser');
     if (userStr) {
       try {
