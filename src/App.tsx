@@ -33,46 +33,45 @@ const App = () => (
             <Route path="/login" element={<LoginPage />} />
             
             <Route path="/student-home" element={
-              <RequireAuth allowedRoles={["student"]}>
+              <RequireAuth allowedRoles={["student", "USER"]}>
                 <StudentHome />
               </RequireAuth>
             } />
             
             <Route path="/teacher-home" element={
-              <RequireAuth allowedRoles={["teacher"]}>
+              <RequireAuth allowedRoles={["teacher", "ADMIN"]}>
                 <TeacherHome />
               </RequireAuth>
             } />
             
             <Route path="/admin-home" element={
-              <RequireAuth allowedRoles={["admin"]}>
+              <RequireAuth allowedRoles={["admin", "ADMIN"]}>
                 <AdminHome />
               </RequireAuth>
             } />
             
             <Route path="/test-confirmation" element={
-              <RequireAuth allowedRoles={["student"]}>
+              <RequireAuth allowedRoles={["student", "USER"]}>
                 <TestConfirmation />
               </RequireAuth>
             } />
             
             <Route path="/test" element={
-              <RequireAuth allowedRoles={["student"]}>
+              <RequireAuth allowedRoles={["student", "USER"]}>
                 <TestPage />
               </RequireAuth>
             } />
             
             <Route path="/results" element={<ResultsPage />} />
             
-            {/* New routes for candidate list, exam list, and detailed results */}
             <Route path="/candidate-list" element={
-              <RequireAuth allowedRoles={["admin", "teacher"]}>
+              <RequireAuth allowedRoles={["admin", "teacher", "ADMIN"]}>
                 <CandidateListPage />
               </RequireAuth>
             } />
             
             <Route path="/exam-list" element={
-              <RequireAuth allowedRoles={["admin", "teacher"]}>
+              <RequireAuth allowedRoles={["admin", "teacher", "ADMIN"]}>
                 <ExamListPage />
               </RequireAuth>
             } />

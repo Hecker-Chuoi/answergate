@@ -25,38 +25,29 @@ const LoginPage = () => {
       // Gọi API đăng nhập
       const response = await authService.login(username, password);
       
-      if (response.statusCode === 200 && response.result.authenticated) {
+      if (response.statusCode === 100 && response.result.authenticated) {
         // Lưu token vào sessionStorage
         sessionStorage.setItem('authToken', response.result.token);
         
-        // Giải mã JWT token để lấy thông tin người dùng
-        // Chú ý: Trong thực tế nên sử dụng thư viện như jwt-decode
-        // Nhưng ở đây chúng ta giả định thông tin role được truyền vào
-        // Trong ứng dụng thực tế, bạn cần giải mã token hoặc gọi API để lấy thông tin người dùng
+        // Lấy thông tin người dùng
+        const userInfo = await authService.getUserInfo(response.result.token);
         
-        // MOCK: Giả định thông tin người dùng (thực tế sẽ lấy từ token)
-        const userRole = getUserRoleFromToken(response.result.token);
-        
-        sessionStorage.setItem('currentUser', JSON.stringify({
-          username: username,
-          role: userRole
-        }));
-        
-        toast.success(`Đăng nhập thành công với quyền ${userRole}`);
-        
-        // Chuyển hướng dựa trên vai trò
-        switch(userRole) {
-          case 'student':
+        if (userInfo) {
+          // Lưu thông tin người dùng vào sessionStorage
+          sessionStorage.setItem('currentUser', JSON.stringify(userInfo));
+          
+          toast.success(`Đăng nhập thành công`);
+          
+          // Chuyển hướng dựa trên vai trò
+          if (userInfo.role === 'USER') {
             navigate('/student-home');
-            break;
-          case 'teacher':
-            navigate('/teacher-home');
-            break;
-          case 'admin':
+          } else if (userInfo.role === 'ADMIN') {
             navigate('/admin-home');
-            break;
-          default:
+          } else {
             navigate('/');
+          }
+        } else {
+          toast.error('Không thể lấy thông tin người dùng');
         }
       } else {
         toast.error(response.message || 'Đăng nhập thất bại');
@@ -67,18 +58,6 @@ const LoginPage = () => {
     } finally {
       setIsLoading(false);
     }
-  };
-  
-  // Hàm mô phỏng việc lấy role từ token (thực tế sẽ giải mã JWT)
-  // Trong thực tế, bạn sẽ sử dụng thư viện để giải mã token
-  const getUserRoleFromToken = (token: string): string => {
-    // MOCK: Giả lập việc xác định role dựa trên username
-    // Trong thực tế sẽ lấy từ payload của token
-    if (username.includes('student')) return 'student';
-    if (username.includes('teacher')) return 'teacher';
-    if (username.includes('admin')) return 'admin';
-    
-    return 'student'; // mặc định
   };
 
   return (
@@ -130,12 +109,6 @@ const LoginPage = () => {
             >
               {isLoading ? 'Đang xử lý...' : 'Đăng nhập'}
             </Button>
-          </div>
-          
-          <div className="text-center text-sm text-gray-600">
-            <p>Để demo: sử dụng</p>
-            <p>Tên đăng nhập: student, teacher, hoặc admin</p>
-            <p>Mật khẩu: password</p>
           </div>
         </form>
       </div>

@@ -1,4 +1,5 @@
 
+// Standardized API Response type matching backend structure
 type ApiResponse<T> = {
   statusCode: number;
   message: string;
@@ -12,6 +13,12 @@ type AuthResult = {
 
 type TokenValidationResult = {
   valid: boolean;
+};
+
+type UserInfo = {
+  username: string;
+  fullName: string;
+  role: string;
 };
 
 const API_URL = 'http://localhost:8080/exam';
@@ -32,7 +39,7 @@ export const authService = {
     } catch (error) {
       console.error('Lỗi đăng nhập:', error);
       return {
-        statusCode: 500,
+        statusCode: 999, // Uncategorized error
         message: 'Lỗi kết nối đến máy chủ',
         result: { authenticated: false, token: '' }
       };
@@ -49,11 +56,53 @@ export const authService = {
         body: JSON.stringify({ token }),
       });
       
-      const data: TokenValidationResult = await response.json();
-      return data.valid;
+      const data = await response.json();
+      return data.result?.valid || false;
     } catch (error) {
       console.error('Lỗi xác thực token:', error);
       return false;
+    }
+  },
+
+  getUserInfo: async (token: string): Promise<UserInfo | null> => {
+    try {
+      const response = await fetch(`${API_URL}/user/myInfo`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        return data.result;
+      }
+      return null;
+    } catch (error) {
+      console.error('Lỗi lấy thông tin người dùng:', error);
+      return null;
+    }
+  },
+
+  getAssignedSessions: async (token: string): Promise<any[]> => {
+    try {
+      const response = await fetch(`${API_URL}/user/myInfo/assignedSessions`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        return data.result || [];
+      }
+      return [];
+    } catch (error) {
+      console.error('Lỗi lấy danh sách bài kiểm tra được gán:', error);
+      return [];
     }
   }
 };

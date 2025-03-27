@@ -15,10 +15,9 @@ const RequireAuth: React.FC<RequireAuthProps> = ({ children, allowedRoles }) => 
 
   useEffect(() => {
     const validateAuth = async () => {
-      const userStr = sessionStorage.getItem('currentUser');
       const token = sessionStorage.getItem('authToken');
       
-      if (!userStr || !token) {
+      if (!token) {
         setIsAuthenticated(false);
         setIsLoading(false);
         return;
@@ -29,13 +28,25 @@ const RequireAuth: React.FC<RequireAuthProps> = ({ children, allowedRoles }) => 
         const isValid = await authService.validateToken(token);
         
         if (isValid) {
-          const user = JSON.parse(userStr);
-          setUserRole(user.role);
-          setIsAuthenticated(true);
+          // Lấy thông tin người dùng
+          const userInfo = await authService.getUserInfo(token);
+          
+          if (userInfo) {
+            setUserRole(userInfo.role);
+            setIsAuthenticated(true);
+            
+            // Cập nhật thông tin người dùng trong sessionStorage
+            sessionStorage.setItem('currentUser', JSON.stringify(userInfo));
+          } else {
+            // Token hợp lệ nhưng không lấy được thông tin người dùng
+            sessionStorage.removeItem('authToken');
+            sessionStorage.removeItem('currentUser');
+            setIsAuthenticated(false);
+          }
         } else {
           // Token không hợp lệ, đăng xuất người dùng
-          sessionStorage.removeItem('currentUser');
           sessionStorage.removeItem('authToken');
+          sessionStorage.removeItem('currentUser');
           setIsAuthenticated(false);
         }
       } catch (error) {
@@ -59,7 +70,14 @@ const RequireAuth: React.FC<RequireAuthProps> = ({ children, allowedRoles }) => 
     return <Navigate to="/login" replace />;
   }
 
-  if (userRole && allowedRoles.includes(userRole)) {
+  // Map backend roles to frontend roles
+  const hasRequiredRole = allowedRoles.some(role => {
+    if (userRole === 'ADMIN' && (role === 'admin' || role === 'teacher')) return true;
+    if (userRole === 'USER' && role === 'student') return true;
+    return role === userRole;
+  });
+
+  if (hasRequiredRole) {
     return <>{children}</>;
   }
 
