@@ -4,13 +4,36 @@ import { toast } from "sonner";
 const API_URL = 'http://localhost:8080/exam';
 
 export type User = {
-  id?: number;
+  userId?: number;
   username: string;
-  password?: string;
   fullName: string;
-  email?: string;
+  dob?: string;
+  gender?: string;
+  phoneNumber?: string;
+  mail?: string;
+  unit?: string;
+  hometown?: string;
   role: 'USER' | 'ADMIN';
-  enabled?: boolean;
+  password?: string;
+};
+
+export type UserCreationRequest = {
+  fullName: string;
+  dob: string;
+  gender?: string;
+  phoneNumber?: string;
+  mail?: string;
+  unit?: string;
+  hometown?: string;
+};
+
+export type UserUpdateRequest = {
+  dob?: string;
+  gender?: string;
+  phoneNumber?: string;
+  mail?: string;
+  unit?: string;
+  hometown?: string;
 };
 
 export type ApiResponse<T> = {
@@ -96,8 +119,14 @@ export const userService = {
     }
   },
 
-  createUser: async (token: string, userData: User): Promise<User | null> => {
+  createUser: async (token: string, userData: UserCreationRequest): Promise<User | null> => {
     try {
+      // Validate required fields
+      if (!userData.fullName || !userData.dob) {
+        toast.error('Họ và tên và ngày sinh là bắt buộc');
+        return null;
+      }
+
       const response = await fetch(`${API_URL}/user/one`, {
         method: 'POST',
         headers: {
@@ -123,7 +152,7 @@ export const userService = {
     }
   },
 
-  updateUser: async (token: string, username: string, userData: Partial<User>): Promise<User | null> => {
+  updateUser: async (token: string, username: string, userData: UserUpdateRequest): Promise<User | null> => {
     try {
       const response = await fetch(`${API_URL}/user/${username}`, {
         method: 'PUT',

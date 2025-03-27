@@ -3,9 +3,9 @@ import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
-import { Search, Download, UserPlus, LogOut, Trash2, Edit, Loader2 } from 'lucide-react';
+import { Search, Download, UserPlus, LogOut, Trash2, Edit, Loader2, Eye } from 'lucide-react';
 import { toast } from 'sonner';
-import { userService, User } from '@/services/userService';
+import { userService, User, UserCreationRequest } from '@/services/userService';
 import {
   Dialog,
   DialogContent,
@@ -35,6 +35,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import UserDetailDialog from '@/components/UserDetailDialog';
 
 const UserManagementPage = () => {
   const navigate = useNavigate();
@@ -44,14 +45,16 @@ const UserManagementPage = () => {
   const [authToken, setAuthToken] = useState<string | null>(null);
   const [currentUser, setCurrentUser] = useState<{ role: string } | null>(null);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
-  const [newUser, setNewUser] = useState<User>({
-    username: '',
+  const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
+  const [newUser, setNewUser] = useState<UserCreationRequest>({
     fullName: '',
-    email: '',
-    password: '',
-    role: 'USER'
+    dob: '',
+    gender: '',
+    phoneNumber: '',
+    mail: '',
+    unit: '',
+    hometown: ''
   });
   const [fileUpload, setFileUpload] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -84,8 +87,8 @@ const UserManagementPage = () => {
         ...user,
         fullName: user.fullName || '',
         username: user.username || '',
-        email: user.email || '',
-        role: user.role || 'USER'
+        role: user.role || 'USER',
+        dob: user.dob || ''
       }));
       setUsers(validatedUsers);
     } catch (error) {
@@ -99,8 +102,15 @@ const UserManagementPage = () => {
   const handleAddUser = async () => {
     if (!authToken) return;
     
-    if (!newUser.username || !newUser.fullName || !newUser.password) {
-      toast.error('Vui lòng điền đầy đủ thông tin');
+    // Validate required fields
+    if (!newUser.fullName || !newUser.dob) {
+      toast.error('Họ và tên và ngày sinh là bắt buộc');
+      return;
+    }
+    
+    // Validate date format (DD/MM/YYYY)
+    if (!/^(\d{2})\/(\d{2})\/(\d{4})$/.test(newUser.dob)) {
+      toast.error('Ngày sinh phải có định dạng DD/MM/YYYY');
       return;
     }
     
@@ -110,11 +120,13 @@ const UserManagementPage = () => {
         fetchUsers(authToken);
         setIsAddDialogOpen(false);
         setNewUser({
-          username: '',
           fullName: '',
-          email: '',
-          password: '',
-          role: 'USER'
+          dob: '',
+          gender: '',
+          phoneNumber: '',
+          mail: '',
+          unit: '',
+          hometown: ''
         });
       }
     } catch (error) {
@@ -122,18 +134,9 @@ const UserManagementPage = () => {
     }
   };
 
-  const handleEditUser = async () => {
-    if (!authToken || !selectedUser) return;
-    
-    try {
-      const result = await userService.updateUser(authToken, selectedUser.username, selectedUser);
-      if (result) {
-        fetchUsers(authToken);
-        setIsEditDialogOpen(false);
-        setSelectedUser(null);
-      }
-    } catch (error) {
-      console.error('Error updating user:', error);
+  const handleUserUpdated = () => {
+    if (authToken) {
+      fetchUsers(authToken);
     }
   };
 
@@ -148,6 +151,11 @@ const UserManagementPage = () => {
     } catch (error) {
       console.error('Error deleting user:', error);
     }
+  };
+
+  const handleViewUserDetails = (user: User) => {
+    setSelectedUser(user);
+    setIsDetailDialogOpen(true);
   };
 
   const handleFileUpload = async () => {
@@ -173,7 +181,7 @@ const UserManagementPage = () => {
   const filteredUsers = users.filter(user =>
     (user.fullName?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
     (user.username?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
-    ((user.email?.toLowerCase() || '')).includes(searchTerm.toLowerCase())
+    ((user.dob?.toLowerCase() || '')).includes(searchTerm.toLowerCase())
   );
 
   if (!currentUser) return <div>Đang tải...</div>;
@@ -221,71 +229,90 @@ const UserManagementPage = () => {
                   <DialogTitle>Thêm người dùng mới</DialogTitle>
                   <DialogDescription>
                     Nhập thông tin để tạo tài khoản người dùng mới.
+                    Họ và tên và ngày sinh là bắt buộc.
                   </DialogDescription>
                 </DialogHeader>
                 <div className="grid gap-4 py-4">
                   <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="username" className="text-right">
-                      Tên đăng nhập
-                    </Label>
-                    <Input
-                      id="username"
-                      value={newUser.username}
-                      onChange={(e) => setNewUser({...newUser, username: e.target.value})}
-                      className="col-span-3"
-                    />
-                  </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="fullName" className="text-right">
-                      Họ và tên
+                      Họ và tên *
                     </Label>
                     <Input
                       id="fullName"
                       value={newUser.fullName}
                       onChange={(e) => setNewUser({...newUser, fullName: e.target.value})}
                       className="col-span-3"
+                      required
                     />
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="email" className="text-right">
+                    <Label htmlFor="dob" className="text-right">
+                      Ngày sinh *
+                    </Label>
+                    <Input
+                      id="dob"
+                      value={newUser.dob}
+                      onChange={(e) => setNewUser({...newUser, dob: e.target.value})}
+                      placeholder="DD/MM/YYYY"
+                      className="col-span-3"
+                      required
+                    />
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="gender" className="text-right">
+                      Giới tính
+                    </Label>
+                    <Input
+                      id="gender"
+                      value={newUser.gender}
+                      onChange={(e) => setNewUser({...newUser, gender: e.target.value})}
+                      className="col-span-3"
+                    />
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="phoneNumber" className="text-right">
+                      Số điện thoại
+                    </Label>
+                    <Input
+                      id="phoneNumber"
+                      value={newUser.phoneNumber}
+                      onChange={(e) => setNewUser({...newUser, phoneNumber: e.target.value})}
+                      className="col-span-3"
+                    />
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="mail" className="text-right">
                       Email
                     </Label>
                     <Input
-                      id="email"
+                      id="mail"
                       type="email"
-                      value={newUser.email || ''}
-                      onChange={(e) => setNewUser({...newUser, email: e.target.value})}
+                      value={newUser.mail}
+                      onChange={(e) => setNewUser({...newUser, mail: e.target.value})}
                       className="col-span-3"
                     />
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="password" className="text-right">
-                      Mật khẩu
+                    <Label htmlFor="unit" className="text-right">
+                      Đơn vị
                     </Label>
                     <Input
-                      id="password"
-                      type="password"
-                      value={newUser.password || ''}
-                      onChange={(e) => setNewUser({...newUser, password: e.target.value})}
+                      id="unit"
+                      value={newUser.unit}
+                      onChange={(e) => setNewUser({...newUser, unit: e.target.value})}
                       className="col-span-3"
                     />
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="role" className="text-right">
-                      Vai trò
+                    <Label htmlFor="hometown" className="text-right">
+                      Quê quán
                     </Label>
-                    <Select 
-                      value={newUser.role} 
-                      onValueChange={(value: 'USER' | 'ADMIN') => setNewUser({...newUser, role: value})}
-                    >
-                      <SelectTrigger className="col-span-3">
-                        <SelectValue placeholder="Chọn vai trò" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="USER">Thí sinh</SelectItem>
-                        <SelectItem value="ADMIN">Quản trị viên</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <Input
+                      id="hometown"
+                      value={newUser.hometown}
+                      onChange={(e) => setNewUser({...newUser, hometown: e.target.value})}
+                      className="col-span-3"
+                    />
                   </div>
                 </div>
                 <DialogFooter>
@@ -358,10 +385,10 @@ const UserManagementPage = () => {
               <Table>
                 <TableHeader>
                   <TableRow className="bg-military-red bg-opacity-10">
-                    <TableHead className="w-[80px]">ID</TableHead>
+                    <TableHead className="w-[60px]">STT</TableHead>
                     <TableHead>Họ và tên</TableHead>
                     <TableHead>Tên đăng nhập</TableHead>
-                    <TableHead>Email</TableHead>
+                    <TableHead>Ngày sinh</TableHead>
                     <TableHead>Vai trò</TableHead>
                     <TableHead className="text-right">Thao tác</TableHead>
                   </TableRow>
@@ -369,11 +396,15 @@ const UserManagementPage = () => {
                 <TableBody>
                   {filteredUsers.length > 0 ? (
                     filteredUsers.map((user, index) => (
-                      <TableRow key={user.username}>
+                      <TableRow 
+                        key={user.username}
+                        className="cursor-pointer hover:bg-gray-50"
+                        onClick={() => handleViewUserDetails(user)}
+                      >
                         <TableCell className="font-medium">{index + 1}</TableCell>
                         <TableCell>{user.fullName}</TableCell>
                         <TableCell>{user.username}</TableCell>
-                        <TableCell>{user.email || '-'}</TableCell>
+                        <TableCell>{user.dob || '-'}</TableCell>
                         <TableCell>
                           <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                             user.role === 'ADMIN' 
@@ -384,17 +415,17 @@ const UserManagementPage = () => {
                           </span>
                         </TableCell>
                         <TableCell className="text-right">
-                          <div className="flex justify-end gap-2">
+                          <div className="flex justify-end gap-2" onClick={(e) => e.stopPropagation()}>
                             <Button 
                               variant="ghost" 
                               size="sm"
                               className="text-blue-600 hover:bg-blue-50"
-                              onClick={() => {
-                                setSelectedUser(user);
-                                setIsEditDialogOpen(true);
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleViewUserDetails(user);
                               }}
                             >
-                              <Edit size={16} />
+                              <Eye size={16} />
                             </Button>
                             
                             <AlertDialog>
@@ -403,11 +434,12 @@ const UserManagementPage = () => {
                                   variant="ghost" 
                                   size="sm"
                                   className="text-red-600 hover:bg-red-50"
+                                  onClick={(e) => e.stopPropagation()}
                                 >
                                   <Trash2 size={16} />
                                 </Button>
                               </AlertDialogTrigger>
-                              <AlertDialogContent>
+                              <AlertDialogContent onClick={(e) => e.stopPropagation()}>
                                 <AlertDialogHeader>
                                   <AlertDialogTitle>Xác nhận xóa người dùng</AlertDialogTitle>
                                   <AlertDialogDescription>
@@ -444,88 +476,17 @@ const UserManagementPage = () => {
         </div>
       </div>
 
-      {/* Edit User Dialog */}
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>Cập nhật thông tin người dùng</DialogTitle>
-            <DialogDescription>
-              Chỉnh sửa thông tin người dùng
-            </DialogDescription>
-          </DialogHeader>
-          {selectedUser && (
-            <div className="grid gap-4 py-4">
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="edit-username" className="text-right">
-                  Tên đăng nhập
-                </Label>
-                <Input
-                  id="edit-username"
-                  value={selectedUser.username}
-                  disabled
-                  className="col-span-3 bg-gray-100"
-                />
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="edit-fullName" className="text-right">
-                  Họ và tên
-                </Label>
-                <Input
-                  id="edit-fullName"
-                  value={selectedUser.fullName}
-                  onChange={(e) => setSelectedUser({...selectedUser, fullName: e.target.value})}
-                  className="col-span-3"
-                />
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="edit-email" className="text-right">
-                  Email
-                </Label>
-                <Input
-                  id="edit-email"
-                  type="email"
-                  value={selectedUser.email || ''}
-                  onChange={(e) => setSelectedUser({...selectedUser, email: e.target.value})}
-                  className="col-span-3"
-                />
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="edit-password" className="text-right">
-                  Mật khẩu mới
-                </Label>
-                <Input
-                  id="edit-password"
-                  type="password"
-                  placeholder="Để trống nếu không đổi"
-                  onChange={(e) => setSelectedUser({...selectedUser, password: e.target.value})}
-                  className="col-span-3"
-                />
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="edit-role" className="text-right">
-                  Vai trò
-                </Label>
-                <Select 
-                  value={selectedUser.role} 
-                  onValueChange={(value: 'USER' | 'ADMIN') => setSelectedUser({...selectedUser, role: value})}
-                >
-                  <SelectTrigger className="col-span-3">
-                    <SelectValue placeholder="Chọn vai trò" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="USER">Thí sinh</SelectItem>
-                    <SelectItem value="ADMIN">Quản trị viên</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>Hủy</Button>
-            <Button onClick={handleEditUser}>Lưu thay đổi</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* User Detail Dialog */}
+      <UserDetailDialog
+        user={selectedUser}
+        isOpen={isDetailDialogOpen}
+        onClose={() => {
+          setIsDetailDialogOpen(false);
+          setSelectedUser(null);
+        }}
+        onUserUpdated={handleUserUpdated}
+        token={authToken || ''}
+      />
     </div>
   );
 };

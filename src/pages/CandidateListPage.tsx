@@ -3,9 +3,9 @@ import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
-import { Search, Download, UserPlus, LogOut, Trash2, Edit, Loader2 } from 'lucide-react';
+import { Search, Download, UserPlus, LogOut, Trash2, Loader2, Eye } from 'lucide-react';
 import { toast } from 'sonner';
-import { userService, User } from '@/services/userService';
+import { userService, User, UserCreationRequest } from '@/services/userService';
 import {
   Dialog,
   DialogContent,
@@ -18,12 +18,10 @@ import {
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -35,6 +33,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import UserDetailDialog from '@/components/UserDetailDialog';
 
 const CandidateListPage = () => {
   const navigate = useNavigate();
@@ -44,14 +43,16 @@ const CandidateListPage = () => {
   const [authToken, setAuthToken] = useState<string | null>(null);
   const [currentUser, setCurrentUser] = useState<{ role: string } | null>(null);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
-  const [newUser, setNewUser] = useState<User>({
-    username: '',
+  const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
+  const [newUser, setNewUser] = useState<UserCreationRequest>({
     fullName: '',
-    email: '',
-    password: '',
-    role: 'USER'
+    dob: '',
+    gender: '',
+    phoneNumber: '',
+    mail: '',
+    unit: '',
+    hometown: ''
   });
   const [fileUpload, setFileUpload] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -79,7 +80,15 @@ const CandidateListPage = () => {
     setIsLoading(true);
     try {
       const data = await userService.getCandidates(token);
-      setCandidates(data);
+      // Ensure all user objects have the required properties
+      const validatedCandidates = data.map(user => ({
+        ...user,
+        fullName: user.fullName || '',
+        username: user.username || '',
+        role: user.role || 'USER',
+        dob: user.dob || ''
+      }));
+      setCandidates(validatedCandidates);
     } catch (error) {
       console.error('Error fetching candidates:', error);
       toast.error('Không thể tải danh sách thí sinh');
@@ -91,8 +100,15 @@ const CandidateListPage = () => {
   const handleAddUser = async () => {
     if (!authToken) return;
     
-    if (!newUser.username || !newUser.fullName || !newUser.password) {
-      toast.error('Vui lòng điền đầy đủ thông tin');
+    // Validate required fields
+    if (!newUser.fullName || !newUser.dob) {
+      toast.error('Họ và tên và ngày sinh là bắt buộc');
+      return;
+    }
+    
+    // Validate date format (DD/MM/YYYY)
+    if (!/^(\d{2})\/(\d{2})\/(\d{4})$/.test(newUser.dob)) {
+      toast.error('Ngày sinh phải có định dạng DD/MM/YYYY');
       return;
     }
     
@@ -102,11 +118,13 @@ const CandidateListPage = () => {
         fetchCandidates(authToken);
         setIsAddDialogOpen(false);
         setNewUser({
-          username: '',
           fullName: '',
-          email: '',
-          password: '',
-          role: 'USER'
+          dob: '',
+          gender: '',
+          phoneNumber: '',
+          mail: '',
+          unit: '',
+          hometown: ''
         });
       }
     } catch (error) {
@@ -114,18 +132,9 @@ const CandidateListPage = () => {
     }
   };
 
-  const handleEditUser = async () => {
-    if (!authToken || !selectedUser) return;
-    
-    try {
-      const result = await userService.updateUser(authToken, selectedUser.username, selectedUser);
-      if (result) {
-        fetchCandidates(authToken);
-        setIsEditDialogOpen(false);
-        setSelectedUser(null);
-      }
-    } catch (error) {
-      console.error('Error updating user:', error);
+  const handleUserUpdated = () => {
+    if (authToken) {
+      fetchCandidates(authToken);
     }
   };
 
@@ -140,6 +149,11 @@ const CandidateListPage = () => {
     } catch (error) {
       console.error('Error deleting user:', error);
     }
+  };
+
+  const handleViewUserDetails = (user: User) => {
+    setSelectedUser(user);
+    setIsDetailDialogOpen(true);
   };
 
   const handleFileUpload = async () => {
@@ -163,9 +177,9 @@ const CandidateListPage = () => {
   };
 
   const filteredCandidates = candidates.filter(candidate =>
-    candidate.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    candidate.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (candidate.email && candidate.email.toLowerCase().includes(searchTerm.toLowerCase()))
+    (candidate.fullName?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+    (candidate.username?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+    ((candidate.dob?.toLowerCase() || '')).includes(searchTerm.toLowerCase())
   );
 
   if (!currentUser) return <div>Đang tải...</div>;
@@ -185,7 +199,7 @@ const CandidateListPage = () => {
     <div className="min-h-screen bg-gradient-to-b from-red-50 to-white">
       <header className="bg-military-red shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
-          <h1 className="text-2xl font-bold text-white">Quản lý người dùng</h1>
+          <h1 className="text-2xl font-bold text-white">Quản lý thí sinh</h1>
           <Button variant="outline" onClick={handleLogout} className="flex items-center gap-2 bg-white text-military-red hover:bg-gray-100">
             <LogOut className="h-4 w-4" />
             Đăng xuất
@@ -205,79 +219,98 @@ const CandidateListPage = () => {
               <DialogTrigger asChild>
                 <Button className="flex items-center gap-2 bg-military-red hover:bg-military-dark-red">
                   <UserPlus size={16} />
-                  Thêm người dùng
+                  Thêm thí sinh
                 </Button>
               </DialogTrigger>
               <DialogContent className="sm:max-w-[425px]">
                 <DialogHeader>
-                  <DialogTitle>Thêm người dùng mới</DialogTitle>
+                  <DialogTitle>Thêm thí sinh mới</DialogTitle>
                   <DialogDescription>
-                    Nhập thông tin để tạo tài khoản người dùng mới.
+                    Nhập thông tin để tạo tài khoản thí sinh mới.
+                    Họ và tên và ngày sinh là bắt buộc.
                   </DialogDescription>
                 </DialogHeader>
                 <div className="grid gap-4 py-4">
                   <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="username" className="text-right">
-                      Tên đăng nhập
-                    </Label>
-                    <Input
-                      id="username"
-                      value={newUser.username}
-                      onChange={(e) => setNewUser({...newUser, username: e.target.value})}
-                      className="col-span-3"
-                    />
-                  </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="fullName" className="text-right">
-                      Họ và tên
+                      Họ và tên *
                     </Label>
                     <Input
                       id="fullName"
                       value={newUser.fullName}
                       onChange={(e) => setNewUser({...newUser, fullName: e.target.value})}
                       className="col-span-3"
+                      required
                     />
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="email" className="text-right">
+                    <Label htmlFor="dob" className="text-right">
+                      Ngày sinh *
+                    </Label>
+                    <Input
+                      id="dob"
+                      value={newUser.dob}
+                      onChange={(e) => setNewUser({...newUser, dob: e.target.value})}
+                      placeholder="DD/MM/YYYY"
+                      className="col-span-3"
+                      required
+                    />
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="gender" className="text-right">
+                      Giới tính
+                    </Label>
+                    <Input
+                      id="gender"
+                      value={newUser.gender}
+                      onChange={(e) => setNewUser({...newUser, gender: e.target.value})}
+                      className="col-span-3"
+                    />
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="phoneNumber" className="text-right">
+                      Số điện thoại
+                    </Label>
+                    <Input
+                      id="phoneNumber"
+                      value={newUser.phoneNumber}
+                      onChange={(e) => setNewUser({...newUser, phoneNumber: e.target.value})}
+                      className="col-span-3"
+                    />
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="mail" className="text-right">
                       Email
                     </Label>
                     <Input
-                      id="email"
+                      id="mail"
                       type="email"
-                      value={newUser.email || ''}
-                      onChange={(e) => setNewUser({...newUser, email: e.target.value})}
+                      value={newUser.mail}
+                      onChange={(e) => setNewUser({...newUser, mail: e.target.value})}
                       className="col-span-3"
                     />
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="password" className="text-right">
-                      Mật khẩu
+                    <Label htmlFor="unit" className="text-right">
+                      Đơn vị
                     </Label>
                     <Input
-                      id="password"
-                      type="password"
-                      value={newUser.password || ''}
-                      onChange={(e) => setNewUser({...newUser, password: e.target.value})}
+                      id="unit"
+                      value={newUser.unit}
+                      onChange={(e) => setNewUser({...newUser, unit: e.target.value})}
                       className="col-span-3"
                     />
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="role" className="text-right">
-                      Vai trò
+                    <Label htmlFor="hometown" className="text-right">
+                      Quê quán
                     </Label>
-                    <Select 
-                      value={newUser.role} 
-                      onValueChange={(value: 'USER' | 'ADMIN') => setNewUser({...newUser, role: value})}
-                    >
-                      <SelectTrigger className="col-span-3">
-                        <SelectValue placeholder="Chọn vai trò" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="USER">Thí sinh</SelectItem>
-                        <SelectItem value="ADMIN">Quản trị viên</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <Input
+                      id="hometown"
+                      value={newUser.hometown}
+                      onChange={(e) => setNewUser({...newUser, hometown: e.target.value})}
+                      className="col-span-3"
+                    />
                   </div>
                 </div>
                 <DialogFooter>
@@ -329,7 +362,7 @@ const CandidateListPage = () => {
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
               <input
                 type="text"
-                placeholder="Tìm kiếm người dùng..."
+                placeholder="Tìm kiếm thí sinh..."
                 className="pl-10 pr-4 py-2 border border-gray-300 rounded-md w-full"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -350,10 +383,10 @@ const CandidateListPage = () => {
               <Table>
                 <TableHeader>
                   <TableRow className="bg-military-red bg-opacity-10">
-                    <TableHead className="w-[80px]">ID</TableHead>
+                    <TableHead className="w-[60px]">STT</TableHead>
                     <TableHead>Họ và tên</TableHead>
                     <TableHead>Tên đăng nhập</TableHead>
-                    <TableHead>Email</TableHead>
+                    <TableHead>Ngày sinh</TableHead>
                     <TableHead>Vai trò</TableHead>
                     <TableHead className="text-right">Thao tác</TableHead>
                   </TableRow>
@@ -361,11 +394,15 @@ const CandidateListPage = () => {
                 <TableBody>
                   {filteredCandidates.length > 0 ? (
                     filteredCandidates.map((candidate, index) => (
-                      <TableRow key={candidate.username}>
+                      <TableRow 
+                        key={candidate.username}
+                        className="cursor-pointer hover:bg-gray-50"
+                        onClick={() => handleViewUserDetails(candidate)}
+                      >
                         <TableCell className="font-medium">{index + 1}</TableCell>
                         <TableCell>{candidate.fullName}</TableCell>
                         <TableCell>{candidate.username}</TableCell>
-                        <TableCell>{candidate.email || '-'}</TableCell>
+                        <TableCell>{candidate.dob || '-'}</TableCell>
                         <TableCell>
                           <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                             candidate.role === 'ADMIN' 
@@ -376,17 +413,17 @@ const CandidateListPage = () => {
                           </span>
                         </TableCell>
                         <TableCell className="text-right">
-                          <div className="flex justify-end gap-2">
+                          <div className="flex justify-end gap-2" onClick={(e) => e.stopPropagation()}>
                             <Button 
                               variant="ghost" 
                               size="sm"
                               className="text-blue-600 hover:bg-blue-50"
-                              onClick={() => {
-                                setSelectedUser(candidate);
-                                setIsEditDialogOpen(true);
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleViewUserDetails(candidate);
                               }}
                             >
-                              <Edit size={16} />
+                              <Eye size={16} />
                             </Button>
                             
                             <AlertDialog>
@@ -395,15 +432,16 @@ const CandidateListPage = () => {
                                   variant="ghost" 
                                   size="sm"
                                   className="text-red-600 hover:bg-red-50"
+                                  onClick={(e) => e.stopPropagation()}
                                 >
                                   <Trash2 size={16} />
                                 </Button>
                               </AlertDialogTrigger>
-                              <AlertDialogContent>
+                              <AlertDialogContent onClick={(e) => e.stopPropagation()}>
                                 <AlertDialogHeader>
-                                  <AlertDialogTitle>Xác nhận xóa người dùng</AlertDialogTitle>
+                                  <AlertDialogTitle>Xác nhận xóa thí sinh</AlertDialogTitle>
                                   <AlertDialogDescription>
-                                    Bạn có chắc muốn xóa người dùng "{candidate.fullName}"? 
+                                    Bạn có chắc muốn xóa thí sinh "{candidate.fullName}"? 
                                     Hành động này không thể hoàn tác.
                                   </AlertDialogDescription>
                                 </AlertDialogHeader>
@@ -425,7 +463,7 @@ const CandidateListPage = () => {
                   ) : (
                     <TableRow>
                       <TableCell colSpan={6} className="text-center py-10 text-gray-500">
-                        Không tìm thấy người dùng nào
+                        Không tìm thấy thí sinh nào
                       </TableCell>
                     </TableRow>
                   )}
@@ -436,88 +474,17 @@ const CandidateListPage = () => {
         </div>
       </div>
 
-      {/* Edit User Dialog */}
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>Cập nhật thông tin người dùng</DialogTitle>
-            <DialogDescription>
-              Chỉnh sửa thông tin người dùng
-            </DialogDescription>
-          </DialogHeader>
-          {selectedUser && (
-            <div className="grid gap-4 py-4">
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="edit-username" className="text-right">
-                  Tên đăng nhập
-                </Label>
-                <Input
-                  id="edit-username"
-                  value={selectedUser.username}
-                  disabled
-                  className="col-span-3 bg-gray-100"
-                />
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="edit-fullName" className="text-right">
-                  Họ và tên
-                </Label>
-                <Input
-                  id="edit-fullName"
-                  value={selectedUser.fullName}
-                  onChange={(e) => setSelectedUser({...selectedUser, fullName: e.target.value})}
-                  className="col-span-3"
-                />
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="edit-email" className="text-right">
-                  Email
-                </Label>
-                <Input
-                  id="edit-email"
-                  type="email"
-                  value={selectedUser.email || ''}
-                  onChange={(e) => setSelectedUser({...selectedUser, email: e.target.value})}
-                  className="col-span-3"
-                />
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="edit-password" className="text-right">
-                  Mật khẩu mới
-                </Label>
-                <Input
-                  id="edit-password"
-                  type="password"
-                  placeholder="Để trống nếu không đổi"
-                  onChange={(e) => setSelectedUser({...selectedUser, password: e.target.value})}
-                  className="col-span-3"
-                />
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="edit-role" className="text-right">
-                  Vai trò
-                </Label>
-                <Select 
-                  value={selectedUser.role} 
-                  onValueChange={(value: 'USER' | 'ADMIN') => setSelectedUser({...selectedUser, role: value})}
-                >
-                  <SelectTrigger className="col-span-3">
-                    <SelectValue placeholder="Chọn vai trò" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="USER">Thí sinh</SelectItem>
-                    <SelectItem value="ADMIN">Quản trị viên</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>Hủy</Button>
-            <Button onClick={handleEditUser}>Lưu thay đổi</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* User Detail Dialog */}
+      <UserDetailDialog
+        user={selectedUser}
+        isOpen={isDetailDialogOpen}
+        onClose={() => {
+          setIsDetailDialogOpen(false);
+          setSelectedUser(null);
+        }}
+        onUserUpdated={handleUserUpdated}
+        token={authToken || ''}
+      />
     </div>
   );
 };
