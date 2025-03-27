@@ -79,7 +79,15 @@ const UserManagementPage = () => {
     setIsLoading(true);
     try {
       const data = await userService.getAllUsers(token);
-      setUsers(data);
+      // Ensure all user objects have the required properties
+      const validatedUsers = data.map(user => ({
+        ...user,
+        fullName: user.fullName || '',
+        username: user.username || '',
+        email: user.email || '',
+        role: user.role || 'USER'
+      }));
+      setUsers(validatedUsers);
     } catch (error) {
       console.error('Error fetching users:', error);
       toast.error('Không thể tải danh sách người dùng');
@@ -163,9 +171,9 @@ const UserManagementPage = () => {
   };
 
   const filteredUsers = users.filter(user =>
-    user.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    user.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (user.email && user.email.toLowerCase().includes(searchTerm.toLowerCase()))
+    (user.fullName?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+    (user.username?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+    ((user.email?.toLowerCase() || '')).includes(searchTerm.toLowerCase())
   );
 
   if (!currentUser) return <div>Đang tải...</div>;

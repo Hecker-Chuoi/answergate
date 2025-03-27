@@ -32,6 +32,7 @@ export const userService = {
       
       if (response.ok) {
         const data: ApiResponse<User[]> = await response.json();
+        console.log("API response data:", data);
         return data.result || [];
       }
       
