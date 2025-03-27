@@ -36,9 +36,9 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 
-const CandidateListPage = () => {
+const UserManagementPage = () => {
   const navigate = useNavigate();
-  const [candidates, setCandidates] = useState<User[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [authToken, setAuthToken] = useState<string | null>(null);
@@ -65,7 +65,7 @@ const CandidateListPage = () => {
         const user = JSON.parse(userStr);
         setCurrentUser(user);
         setAuthToken(token);
-        fetchCandidates(token);
+        fetchUsers(token);
       } catch (error) {
         console.error('Error parsing user data:', error);
         navigate('/login');
@@ -75,14 +75,14 @@ const CandidateListPage = () => {
     }
   }, [navigate]);
 
-  const fetchCandidates = async (token: string) => {
+  const fetchUsers = async (token: string) => {
     setIsLoading(true);
     try {
-      const data = await userService.getCandidates(token);
-      setCandidates(data);
+      const data = await userService.getAllUsers(token);
+      setUsers(data);
     } catch (error) {
-      console.error('Error fetching candidates:', error);
-      toast.error('Không thể tải danh sách thí sinh');
+      console.error('Error fetching users:', error);
+      toast.error('Không thể tải danh sách người dùng');
     } finally {
       setIsLoading(false);
     }
@@ -99,7 +99,7 @@ const CandidateListPage = () => {
     try {
       const result = await userService.createUser(authToken, newUser);
       if (result) {
-        fetchCandidates(authToken);
+        fetchUsers(authToken);
         setIsAddDialogOpen(false);
         setNewUser({
           username: '',
@@ -120,7 +120,7 @@ const CandidateListPage = () => {
     try {
       const result = await userService.updateUser(authToken, selectedUser.username, selectedUser);
       if (result) {
-        fetchCandidates(authToken);
+        fetchUsers(authToken);
         setIsEditDialogOpen(false);
         setSelectedUser(null);
       }
@@ -135,7 +135,7 @@ const CandidateListPage = () => {
     try {
       const result = await userService.deleteUser(authToken, username);
       if (result) {
-        fetchCandidates(authToken);
+        fetchUsers(authToken);
       }
     } catch (error) {
       console.error('Error deleting user:', error);
@@ -152,7 +152,7 @@ const CandidateListPage = () => {
     try {
       const result = await userService.uploadUsersExcel(authToken, fileUpload);
       if (result) {
-        fetchCandidates(authToken);
+        fetchUsers(authToken);
         setFileUpload(null);
       }
     } catch (error) {
@@ -162,10 +162,10 @@ const CandidateListPage = () => {
     }
   };
 
-  const filteredCandidates = candidates.filter(candidate =>
-    candidate.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    candidate.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (candidate.email && candidate.email.toLowerCase().includes(searchTerm.toLowerCase()))
+  const filteredUsers = users.filter(user =>
+    user.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    user.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (user.email && user.email.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   if (!currentUser) return <div>Đang tải...</div>;
@@ -196,7 +196,7 @@ const CandidateListPage = () => {
       <div className="container mx-auto p-6">
         <div className="flex justify-between items-center mb-6">
           <div className="flex gap-2">
-            <Button variant="outline" onClick={() => navigate(-1)}>
+            <Button variant="outline" onClick={() => navigate('/admin-home')}>
               Quay lại
             </Button>
           </div>
@@ -359,20 +359,20 @@ const CandidateListPage = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredCandidates.length > 0 ? (
-                    filteredCandidates.map((candidate, index) => (
-                      <TableRow key={candidate.username}>
+                  {filteredUsers.length > 0 ? (
+                    filteredUsers.map((user, index) => (
+                      <TableRow key={user.username}>
                         <TableCell className="font-medium">{index + 1}</TableCell>
-                        <TableCell>{candidate.fullName}</TableCell>
-                        <TableCell>{candidate.username}</TableCell>
-                        <TableCell>{candidate.email || '-'}</TableCell>
+                        <TableCell>{user.fullName}</TableCell>
+                        <TableCell>{user.username}</TableCell>
+                        <TableCell>{user.email || '-'}</TableCell>
                         <TableCell>
                           <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                            candidate.role === 'ADMIN' 
+                            user.role === 'ADMIN' 
                               ? 'bg-purple-100 text-purple-800' 
                               : 'bg-blue-100 text-blue-800'
                           }`}>
-                            {candidate.role === 'ADMIN' ? 'Quản trị viên' : 'Thí sinh'}
+                            {user.role === 'ADMIN' ? 'Quản trị viên' : 'Thí sinh'}
                           </span>
                         </TableCell>
                         <TableCell className="text-right">
@@ -382,7 +382,7 @@ const CandidateListPage = () => {
                               size="sm"
                               className="text-blue-600 hover:bg-blue-50"
                               onClick={() => {
-                                setSelectedUser(candidate);
+                                setSelectedUser(user);
                                 setIsEditDialogOpen(true);
                               }}
                             >
@@ -403,7 +403,7 @@ const CandidateListPage = () => {
                                 <AlertDialogHeader>
                                   <AlertDialogTitle>Xác nhận xóa người dùng</AlertDialogTitle>
                                   <AlertDialogDescription>
-                                    Bạn có chắc muốn xóa người dùng "{candidate.fullName}"? 
+                                    Bạn có chắc muốn xóa người dùng "{user.fullName}"? 
                                     Hành động này không thể hoàn tác.
                                   </AlertDialogDescription>
                                 </AlertDialogHeader>
@@ -411,7 +411,7 @@ const CandidateListPage = () => {
                                   <AlertDialogCancel>Hủy</AlertDialogCancel>
                                   <AlertDialogAction
                                     className="bg-red-600 hover:bg-red-700"
-                                    onClick={() => handleDeleteUser(candidate.username)}
+                                    onClick={() => handleDeleteUser(user.username)}
                                   >
                                     Xóa
                                   </AlertDialogAction>
@@ -522,4 +522,4 @@ const CandidateListPage = () => {
   );
 };
 
-export default CandidateListPage;
+export default UserManagementPage;
