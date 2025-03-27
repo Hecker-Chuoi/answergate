@@ -19,6 +19,8 @@ import CandidateListPage from "./pages/CandidateListPage";
 import ExamListPage from "./pages/ExamListPage";
 import DetailedResultsPage from "./pages/DetailedResultsPage";
 import UserManagementPage from "./pages/UserManagementPage";
+import TestFormPage from "./pages/TestFormPage";
+import TestDetailsPage from "./pages/TestDetailsPage";
 
 const queryClient = new QueryClient();
 
@@ -80,6 +82,24 @@ const App = () => (
             <Route path="/exam-list" element={
               <RequireAuth allowedRoles={["admin", "ADMIN"]}>
                 <ExamListPage />
+              </RequireAuth>
+            } />
+
+            <Route path="/create-test" element={
+              <RequireAuth allowedRoles={["admin", "ADMIN"]}>
+                <TestFormPage />
+              </RequireAuth>
+            } />
+
+            <Route path="/edit-test/:id" element={
+              <RequireAuth allowedRoles={["admin", "ADMIN"]}>
+                <TestFormPage />
+              </RequireAuth>
+            } />
+
+            <Route path="/test-details/:id" element={
+              <RequireAuth allowedRoles={["admin", "ADMIN"]}>
+                <TestDetailsPage />
               </RequireAuth>
             } />
             

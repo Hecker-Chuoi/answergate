@@ -1,0 +1,292 @@
+
+import { toast } from "sonner";
+
+const API_URL = 'http://localhost:8080/exam';
+
+export type Test = {
+  testId?: number;
+  testCode?: string;
+  testName: string;
+  description?: string;
+  startTime?: string;
+  endTime?: string;
+  totalTime?: number;
+  createdAt?: string;
+  updatedAt?: string;
+  createdBy?: string;
+  status?: 'ACTIVE' | 'INACTIVE' | 'DELETED';
+  totalQuestion?: number;
+  subject?: string;
+};
+
+export type TestCreationRequest = {
+  testName: string;
+  description?: string;
+  startTime?: string;
+  endTime?: string;
+  totalTime?: number;
+  subject?: string;
+};
+
+export type TestUpdateRequest = {
+  testName?: string;
+  description?: string;
+  startTime?: string;
+  endTime?: string;
+  totalTime?: number;
+  status?: 'ACTIVE' | 'INACTIVE';
+  subject?: string;
+};
+
+export type Question = {
+  questionId?: number;
+  content: string;
+  options: string[];
+  answer: number;
+  explanation?: string;
+  testId?: number;
+};
+
+export type ApiResponse<T> = {
+  statusCode: number;
+  message: string;
+  result: T;
+};
+
+export const testService = {
+  getAllTests: async (token: string): Promise<Test[]> => {
+    try {
+      const response = await fetch(`${API_URL}/test/all`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+      });
+      
+      if (response.ok) {
+        const data: ApiResponse<Test[]> = await response.json();
+        console.log("API response for tests:", data);
+        return data.result || [];
+      }
+      
+      const errorData = await response.json();
+      toast.error(`Lỗi: ${errorData.message}`);
+      return [];
+    } catch (error) {
+      console.error('Lỗi khi lấy danh sách đề thi:', error);
+      toast.error('Không thể kết nối đến máy chủ');
+      return [];
+    }
+  },
+
+  getTestById: async (token: string, testId: number): Promise<Test | null> => {
+    try {
+      const response = await fetch(`${API_URL}/test/${testId}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+      });
+      
+      if (response.ok) {
+        const data: ApiResponse<Test> = await response.json();
+        return data.result;
+      }
+      
+      const errorData = await response.json();
+      toast.error(`Lỗi: ${errorData.message}`);
+      return null;
+    } catch (error) {
+      console.error('Lỗi khi lấy thông tin đề thi:', error);
+      toast.error('Không thể kết nối đến máy chủ');
+      return null;
+    }
+  },
+
+  getValidTests: async (token: string): Promise<Test[]> => {
+    try {
+      const response = await fetch(`${API_URL}/test/valid`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+      });
+      
+      if (response.ok) {
+        const data: ApiResponse<Test[]> = await response.json();
+        return data.result || [];
+      }
+      
+      const errorData = await response.json();
+      toast.error(`Lỗi: ${errorData.message}`);
+      return [];
+    } catch (error) {
+      console.error('Lỗi khi lấy danh sách đề thi hợp lệ:', error);
+      toast.error('Không thể kết nối đến máy chủ');
+      return [];
+    }
+  },
+
+  createTest: async (token: string, testData: TestCreationRequest): Promise<Test | null> => {
+    try {
+      if (!testData.testName) {
+        toast.error('Tên đề thi là bắt buộc');
+        return null;
+      }
+
+      const response = await fetch(`${API_URL}/test`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(testData)
+      });
+      
+      if (response.ok) {
+        const data: ApiResponse<Test> = await response.json();
+        toast.success('Tạo đề thi thành công');
+        return data.result;
+      }
+      
+      const errorData = await response.json();
+      toast.error(`Lỗi: ${errorData.message}`);
+      return null;
+    } catch (error) {
+      console.error('Lỗi khi tạo đề thi:', error);
+      toast.error('Không thể kết nối đến máy chủ');
+      return null;
+    }
+  },
+
+  updateTest: async (token: string, testId: number, testData: TestUpdateRequest): Promise<Test | null> => {
+    try {
+      const response = await fetch(`${API_URL}/test/${testId}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(testData)
+      });
+      
+      if (response.ok) {
+        const data: ApiResponse<Test> = await response.json();
+        toast.success('Cập nhật đề thi thành công');
+        return data.result;
+      }
+      
+      const errorData = await response.json();
+      toast.error(`Lỗi: ${errorData.message}`);
+      return null;
+    } catch (error) {
+      console.error('Lỗi khi cập nhật đề thi:', error);
+      toast.error('Không thể kết nối đến máy chủ');
+      return null;
+    }
+  },
+
+  deleteTest: async (token: string, testId: number): Promise<boolean> => {
+    try {
+      const response = await fetch(`${API_URL}/test/${testId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (response.ok) {
+        toast.success('Xóa đề thi thành công');
+        return true;
+      }
+      
+      const errorData = await response.json();
+      toast.error(`Lỗi: ${errorData.message}`);
+      return false;
+    } catch (error) {
+      console.error('Lỗi khi xóa đề thi:', error);
+      toast.error('Không thể kết nối đến máy chủ');
+      return false;
+    }
+  },
+
+  restoreTest: async (token: string, testId: number): Promise<boolean> => {
+    try {
+      const response = await fetch(`${API_URL}/test/${testId}/restore`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (response.ok) {
+        toast.success('Khôi phục đề thi thành công');
+        return true;
+      }
+      
+      const errorData = await response.json();
+      toast.error(`Lỗi: ${errorData.message}`);
+      return false;
+    } catch (error) {
+      console.error('Lỗi khi khôi phục đề thi:', error);
+      toast.error('Không thể kết nối đến máy chủ');
+      return false;
+    }
+  },
+
+  getTestQuestions: async (token: string, testId: number): Promise<Question[]> => {
+    try {
+      const response = await fetch(`${API_URL}/test/${testId}/questions`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (response.ok) {
+        const data: ApiResponse<Question[]> = await response.json();
+        return data.result || [];
+      }
+      
+      const errorData = await response.json();
+      toast.error(`Lỗi: ${errorData.message}`);
+      return [];
+    } catch (error) {
+      console.error('Lỗi khi lấy danh sách câu hỏi:', error);
+      toast.error('Không thể kết nối đến máy chủ');
+      return [];
+    }
+  },
+
+  setTestQuestions: async (token: string, testId: number, questions: Question[]): Promise<boolean> => {
+    try {
+      const response = await fetch(`${API_URL}/test/${testId}/questions`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(questions)
+      });
+      
+      if (response.ok) {
+        toast.success('Cập nhật câu hỏi thành công');
+        return true;
+      }
+      
+      const errorData = await response.json();
+      toast.error(`Lỗi: ${errorData.message}`);
+      return false;
+    } catch (error) {
+      console.error('Lỗi khi cập nhật câu hỏi:', error);
+      toast.error('Không thể kết nối đến máy chủ');
+      return false;
+    }
+  }
+};
