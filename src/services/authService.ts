@@ -35,6 +35,7 @@ export const authService = {
       });
       
       const data = await response.json();
+      console.log(data);
       return data;
     } catch (error) {
       console.error('Lỗi đăng nhập:', error);
