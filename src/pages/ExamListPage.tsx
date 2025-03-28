@@ -3,8 +3,8 @@ import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
-import { Search, FileText, Clock, Users, Trash, RefreshCw } from 'lucide-react';
-import { testService, Test } from '@/services/testService';
+import { Search, FileText, Edit, Trash, RefreshCw, Eye } from 'lucide-react';
+import { testService, Test, TestUpdateRequest } from '@/services/testService';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -15,6 +15,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { toast } from 'sonner';
 
 const ExamListPage = () => {
   const navigate = useNavigate();
@@ -25,6 +28,11 @@ const ExamListPage = () => {
   const [selectedTestId, setSelectedTestId] = useState<number | null>(null);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showRestoreDialog, setShowRestoreDialog] = useState(false);
+  const [showEditDialog, setShowEditDialog] = useState(false);
+  const [editFormData, setEditFormData] = useState<TestUpdateRequest>({
+    testName: '',
+    subject: ''
+  });
 
   useEffect(() => {
     // Get user info from session storage
@@ -90,6 +98,34 @@ const ExamListPage = () => {
     setShowRestoreDialog(false);
   };
 
+  const handleEditTest = async () => {
+    if (!selectedTestId) return;
+    
+    const token = sessionStorage.getItem('authToken');
+    if (token) {
+      // Validate form
+      if (!editFormData.testName) {
+        toast.error('Tên đề thi không được để trống');
+        return;
+      }
+      
+      const updatedTest = await testService.updateTest(token, selectedTestId, editFormData);
+      if (updatedTest) {
+        fetchTests(token);
+        setShowEditDialog(false);
+      }
+    }
+  };
+
+  const openEditDialog = (test: Test) => {
+    setSelectedTestId(test.testId || null);
+    setEditFormData({
+      testName: test.testName,
+      subject: test.subject || ''
+    });
+    setShowEditDialog(true);
+  };
+
   const filteredTests = tests.filter(test => {
     if (!test || !test.testName) return false;
     
@@ -98,32 +134,6 @@ const ExamListPage = () => {
       (test.subject && test.subject.toLowerCase().includes(searchTerm.toLowerCase()))
     );
   });
-
-  const getStatusBadgeClass = (status?: string) => {
-    switch (status) {
-      case 'ACTIVE':
-        return 'bg-green-100 text-green-800';
-      case 'INACTIVE':
-        return 'bg-gray-100 text-gray-800';
-      case 'DELETED':
-        return 'bg-red-100 text-red-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  const getStatusText = (status?: string) => {
-    switch (status) {
-      case 'ACTIVE':
-        return 'Đang hoạt động';
-      case 'INACTIVE':
-        return 'Không hoạt động';
-      case 'DELETED':
-        return 'Đã xóa';
-      default:
-        return 'Không xác định';
-    }
-  };
 
   if (!currentUser) return <div>Đang tải...</div>;
   
@@ -175,17 +185,14 @@ const ExamListPage = () => {
                   <TableHead className="w-[80px]">ID</TableHead>
                   <TableHead>Tên đề thi</TableHead>
                   <TableHead>Môn học</TableHead>
-                  <TableHead className="text-center">Số câu hỏi</TableHead>
-                  <TableHead className="text-center">Thời gian (phút)</TableHead>
-                  <TableHead>Ngày tạo</TableHead>
-                  <TableHead>Trạng thái</TableHead>
+                  <TableHead>Cập nhật lần cuối</TableHead>
                   <TableHead className="text-right">Thao tác</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredTests.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center">Không tìm thấy đề thi nào</TableCell>
+                    <TableCell colSpan={5} className="text-center">Không tìm thấy đề thi nào</TableCell>
                   </TableRow>
                 ) : (
                   filteredTests.map((test) => (
@@ -193,56 +200,52 @@ const ExamListPage = () => {
                       <TableCell className="font-medium">{test.testId}</TableCell>
                       <TableCell>{test.testName}</TableCell>
                       <TableCell>{test.subject || 'Chưa phân loại'}</TableCell>
-                      <TableCell className="text-center">
-                        <div className="flex items-center justify-center gap-1">
-                          <FileText size={14} />
-                          {test.totalQuestion || 0}
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <div className="flex items-center justify-center gap-1">
-                          <Clock size={14} />
-                          {test.totalTime || 0}
-                        </div>
-                      </TableCell>
-                      <TableCell>{test.createdAt ? new Date(test.createdAt).toLocaleDateString('vi-VN') : 'N/A'}</TableCell>
-                      <TableCell>
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusBadgeClass(test.status)}`}>
-                          {getStatusText(test.status)}
-                        </span>
-                      </TableCell>
+                      <TableCell>{test.editedTime || 'N/A'}</TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
                           <Button 
                             variant="ghost" 
                             size="sm"
                             onClick={() => navigate(`/test-details/${test.testId}`)}
+                            className="flex items-center gap-1"
                           >
+                            <Eye size={16} />
                             Chi tiết
                           </Button>
-                          {test.status !== 'DELETED' ? (
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            className="flex items-center gap-1"
+                            onClick={() => openEditDialog(test)}
+                          >
+                            <Edit size={16} />
+                            Sửa
+                          </Button>
+                          {!test.deleted ? (
                             <Button 
                               variant="ghost" 
                               size="sm"
-                              className="text-red-500 hover:text-red-700"
+                              className="text-red-500 hover:text-red-700 flex items-center gap-1"
                               onClick={() => {
                                 setSelectedTestId(test.testId || null);
                                 setShowDeleteDialog(true);
                               }}
                             >
                               <Trash size={16} />
+                              Xóa
                             </Button>
                           ) : (
                             <Button 
                               variant="ghost" 
                               size="sm"
-                              className="text-green-500 hover:text-green-700"
+                              className="text-green-500 hover:text-green-700 flex items-center gap-1"
                               onClick={() => {
                                 setSelectedTestId(test.testId || null);
                                 setShowRestoreDialog(true);
                               }}
                             >
                               <RefreshCw size={16} />
+                              Khôi phục
                             </Button>
                           )}
                         </div>
@@ -287,6 +290,41 @@ const ExamListPage = () => {
             <AlertDialogCancel>Hủy</AlertDialogCancel>
             <AlertDialogAction className="bg-green-500 hover:bg-green-600" onClick={handleRestoreTest}>
               Khôi phục
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Edit Dialog */}
+      <AlertDialog open={showEditDialog} onOpenChange={setShowEditDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Chỉnh sửa thông tin đề thi</AlertDialogTitle>
+          </AlertDialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="testName">Tên đề thi</Label>
+              <Input 
+                id="testName" 
+                value={editFormData.testName} 
+                onChange={(e) => setEditFormData({...editFormData, testName: e.target.value})}
+                placeholder="Nhập tên đề thi"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="subject">Môn học</Label>
+              <Input 
+                id="subject" 
+                value={editFormData.subject} 
+                onChange={(e) => setEditFormData({...editFormData, subject: e.target.value})}
+                placeholder="Nhập tên môn học"
+              />
+            </div>
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Hủy</AlertDialogCancel>
+            <AlertDialogAction onClick={handleEditTest}>
+              Lưu thay đổi
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

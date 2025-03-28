@@ -5,8 +5,10 @@ const API_URL = 'http://localhost:8080/exam';
 
 export type Test = {
   testId?: number;
-  testCode?: string;
   testName: string;
+  subject?: string;
+  editedTime?: string;
+  deleted?: boolean;
   description?: string;
   startTime?: string;
   endTime?: string;
@@ -16,29 +18,45 @@ export type Test = {
   createdBy?: string;
   status?: 'ACTIVE' | 'INACTIVE' | 'DELETED';
   totalQuestion?: number;
-  subject?: string;
+  questions?: Question[];
 };
 
 export type TestCreationRequest = {
   testName: string;
+  subject?: string;
   description?: string;
   startTime?: string;
   endTime?: string;
   totalTime?: number;
-  subject?: string;
 };
 
 export type TestUpdateRequest = {
   testName?: string;
+  subject?: string;
   description?: string;
   startTime?: string;
   endTime?: string;
   totalTime?: number;
   status?: 'ACTIVE' | 'INACTIVE';
-  subject?: string;
+};
+
+export type Answer = {
+  answerId?: number;
+  answerText: string;
+  isCorrect: boolean;
 };
 
 export type Question = {
+  questionId?: number;
+  questionText: string;
+  explainText?: string;
+  questionType: 'SINGLE_CHOICE' | 'MULTIPLE_CHOICES';
+  answers: Answer[];
+  testId?: number;
+};
+
+// Old Question type for backward compatibility until we update all references
+export type OldQuestion = {
   questionId?: number;
   content: string;
   options: string[];
