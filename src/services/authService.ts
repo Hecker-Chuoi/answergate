@@ -16,9 +16,16 @@ type TokenValidationResult = {
 };
 
 type UserInfo = {
+  userId?: number;
   username: string;
   fullName: string;
-  role: string;
+  dob?: string;
+  gender?: string;
+  phoneNumber?: string;
+  mail?: string;
+  hometown?: string;
+  role: 'USER' | 'ADMIN';
+  type?: string;
 };
 
 const API_URL = 'http://localhost:8080/exam';
@@ -35,7 +42,7 @@ export const authService = {
       });
       
       const data = await response.json();
-      console.log(data);
+      console.log('Login response:', data);
       return data;
     } catch (error) {
       console.error('Lỗi đăng nhập:', error);
@@ -83,27 +90,6 @@ export const authService = {
     } catch (error) {
       console.error('Lỗi lấy thông tin người dùng:', error);
       return null;
-    }
-  },
-
-  getAssignedSessions: async (token: string): Promise<any[]> => {
-    try {
-      const response = await fetch(`${API_URL}/user/myInfo/assignedSessions`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        return data.result || [];
-      }
-      return [];
-    } catch (error) {
-      console.error('Lỗi lấy danh sách bài kiểm tra được gán:', error);
-      return [];
     }
   }
 };

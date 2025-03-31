@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { authService } from '@/services/authService';
+import { Loader2 } from 'lucide-react';
 
 interface RequireAuthProps {
   children: React.ReactNode;
@@ -24,33 +25,33 @@ const RequireAuth: React.FC<RequireAuthProps> = ({ children, allowedRoles }) => 
       }
       
       try {
-        // Kiểm tra token có hợp lệ không
+        // Validate token
         const isValid = await authService.validateToken(token);
         
         if (isValid) {
-          // Lấy thông tin người dùng
+          // Get user info
           const userInfo = await authService.getUserInfo(token);
           
           if (userInfo) {
             setUserRole(userInfo.role);
             setIsAuthenticated(true);
             
-            // Cập nhật thông tin người dùng trong sessionStorage
+            // Update user info in sessionStorage
             sessionStorage.setItem('currentUser', JSON.stringify(userInfo));
           } else {
-            // Token hợp lệ nhưng không lấy được thông tin người dùng
+            // Token is valid but can't get user info
             sessionStorage.removeItem('authToken');
             sessionStorage.removeItem('currentUser');
             setIsAuthenticated(false);
           }
         } else {
-          // Token không hợp lệ, đăng xuất người dùng
+          // Token is invalid, logout user
           sessionStorage.removeItem('authToken');
           sessionStorage.removeItem('currentUser');
           setIsAuthenticated(false);
         }
       } catch (error) {
-        console.error('Lỗi xác thực:', error);
+        console.error('Authentication error:', error);
         setIsAuthenticated(false);
       }
       
@@ -61,19 +62,22 @@ const RequireAuth: React.FC<RequireAuthProps> = ({ children, allowedRoles }) => 
   }, []);
 
   if (isLoading) {
-    return <div className="flex h-screen items-center justify-center">
-      <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-military-red"></div>
-    </div>;
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <Loader2 className="h-16 w-16 animate-spin text-primary" />
+      </div>
+    );
   }
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
 
-  // Map backend roles to frontend roles
+  // Check if user has allowed role
   const hasRequiredRole = allowedRoles.some(role => {
-    if (userRole === 'ADMIN' && (role === 'admin' || role === 'teacher')) return true;
-    if (userRole === 'USER' && role === 'student') return true;
+    // Map backend roles to frontend roles
+    if (userRole === 'ADMIN' && (role === 'admin' || role === 'ADMIN')) return true;
+    if (userRole === 'USER' && (role === 'user' || role === 'USER')) return true;
     return role === userRole;
   });
 
@@ -81,7 +85,17 @@ const RequireAuth: React.FC<RequireAuthProps> = ({ children, allowedRoles }) => 
     return <>{children}</>;
   }
 
-  return <Navigate to="/" replace />;
+  // If user doesn't have the required role, redirect to appropriate home page
+  if (userRole === 'ADMIN') {
+    return <Navigate to="/admin-home" replace />;
+  }
+  
+  if (userRole === 'USER') {
+    return <Navigate to="/student-home" replace />;
+  }
+
+  // Fallback to login
+  return <Navigate to="/login" replace />;
 };
 
 export default RequireAuth;

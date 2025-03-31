@@ -8,36 +8,13 @@ export type Test = {
   testName: string;
   subject?: string;
   editedTime?: string;
-  deleted?: boolean;
-  description?: string;
-  startTime?: string;
-  endTime?: string;
-  totalTime?: number;
-  createdAt?: string;
-  updatedAt?: string;
-  createdBy?: string;
-  status?: 'ACTIVE' | 'INACTIVE' | 'DELETED';
-  totalQuestion?: number;
-  questions?: Question[];
+  isDeleted?: boolean;
+  questionCount?: number;
 };
 
 export type TestCreationRequest = {
   testName: string;
   subject?: string;
-  description?: string;
-  startTime?: string;
-  endTime?: string;
-  totalTime?: number;
-};
-
-export type TestUpdateRequest = {
-  testName?: string;
-  subject?: string;
-  description?: string;
-  startTime?: string;
-  endTime?: string;
-  totalTime?: number;
-  status?: 'ACTIVE' | 'INACTIVE';
 };
 
 export type Answer = {
@@ -55,14 +32,14 @@ export type Question = {
   testId?: number;
 };
 
-// Old Question type for backward compatibility until we update all references
-export type OldQuestion = {
-  questionId?: number;
-  content: string;
-  options: string[];
-  answer: number;
-  explanation?: string;
-  testId?: number;
+export type QuestionCreationRequest = {
+  questionText: string;
+  explainText?: string;
+  questionType: 'SINGLE_CHOICE' | 'MULTIPLE_CHOICES';
+  answers: {
+    answerText: string;
+    isCorrect: boolean;
+  }[];
 };
 
 export type ApiResponse<T> = {
@@ -84,7 +61,6 @@ export const testService = {
       
       if (response.ok) {
         const data: ApiResponse<Test[]> = await response.json();
-        console.log("API response for tests:", data);
         return data.result || [];
       }
       
@@ -93,6 +69,31 @@ export const testService = {
       return [];
     } catch (error) {
       console.error('Lỗi khi lấy danh sách đề thi:', error);
+      toast.error('Không thể kết nối đến máy chủ');
+      return [];
+    }
+  },
+
+  getValidTests: async (token: string): Promise<Test[]> => {
+    try {
+      const response = await fetch(`${API_URL}/test/valid`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+      });
+      
+      if (response.ok) {
+        const data: ApiResponse<Test[]> = await response.json();
+        return data.result || [];
+      }
+      
+      const errorData = await response.json();
+      toast.error(`Lỗi: ${errorData.message}`);
+      return [];
+    } catch (error) {
+      console.error('Lỗi khi lấy danh sách đề thi hợp lệ:', error);
       toast.error('Không thể kết nối đến máy chủ');
       return [];
     }
@@ -123,38 +124,8 @@ export const testService = {
     }
   },
 
-  getValidTests: async (token: string): Promise<Test[]> => {
-    try {
-      const response = await fetch(`${API_URL}/test/valid`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-      });
-      
-      if (response.ok) {
-        const data: ApiResponse<Test[]> = await response.json();
-        return data.result || [];
-      }
-      
-      const errorData = await response.json();
-      toast.error(`Lỗi: ${errorData.message}`);
-      return [];
-    } catch (error) {
-      console.error('Lỗi khi lấy danh sách đề thi hợp lệ:', error);
-      toast.error('Không thể kết nối đến máy chủ');
-      return [];
-    }
-  },
-
   createTest: async (token: string, testData: TestCreationRequest): Promise<Test | null> => {
     try {
-      if (!testData.testName) {
-        toast.error('Tên đề thi là bắt buộc');
-        return null;
-      }
-
       const response = await fetch(`${API_URL}/test`, {
         method: 'POST',
         headers: {
@@ -180,7 +151,7 @@ export const testService = {
     }
   },
 
-  updateTest: async (token: string, testId: number, testData: TestUpdateRequest): Promise<Test | null> => {
+  updateTest: async (token: string, testId: number, testData: TestCreationRequest): Promise<Test | null> => {
     try {
       const response = await fetch(`${API_URL}/test/${testId}`, {
         method: 'PUT',
@@ -282,7 +253,7 @@ export const testService = {
     }
   },
 
-  setTestQuestions: async (token: string, testId: number, questions: Question[]): Promise<boolean> => {
+  setTestQuestions: async (token: string, testId: number, questions: QuestionCreationRequest[]): Promise<Test | null> => {
     try {
       const response = await fetch(`${API_URL}/test/${testId}/questions`, {
         method: 'POST',
@@ -294,17 +265,18 @@ export const testService = {
       });
       
       if (response.ok) {
+        const data: ApiResponse<Test> = await response.json();
         toast.success('Cập nhật câu hỏi thành công');
-        return true;
+        return data.result;
       }
       
       const errorData = await response.json();
       toast.error(`Lỗi: ${errorData.message}`);
-      return false;
+      return null;
     } catch (error) {
       console.error('Lỗi khi cập nhật câu hỏi:', error);
       toast.error('Không thể kết nối đến máy chủ');
-      return false;
+      return null;
     }
   }
 };

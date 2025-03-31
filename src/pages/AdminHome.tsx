@@ -1,13 +1,46 @@
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { LogOut, Users, FileText, Settings } from 'lucide-react';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { LogOut, Users, BookOpen, ClipboardList, ArrowRight } from 'lucide-react';
 import { toast } from 'sonner';
+
+interface MenuItem {
+  title: string;
+  description: string;
+  icon: React.ReactNode;
+  path: string;
+}
 
 const AdminHome = () => {
   const navigate = useNavigate();
+  const [user, setUser] = useState<any>(null);
   
+  useEffect(() => {
+    // Check if user is authenticated and has ADMIN role
+    const userStr = sessionStorage.getItem('currentUser');
+    const token = sessionStorage.getItem('authToken');
+    
+    if (!userStr || !token) {
+      navigate('/login');
+      return;
+    }
+
+    try {
+      const userData = JSON.parse(userStr);
+      if (userData.role !== 'ADMIN') {
+        navigate('/login');
+        return;
+      }
+      
+      setUser(userData);
+    } catch (error) {
+      console.error('Error parsing user data:', error);
+      navigate('/login');
+    }
+  }, [navigate]);
+
   const handleLogout = () => {
     sessionStorage.removeItem('currentUser');
     sessionStorage.removeItem('authToken');
@@ -15,131 +48,70 @@ const AdminHome = () => {
     navigate('/login');
   };
 
+  const menuItems: MenuItem[] = [
+    {
+      title: 'Quản lý người dùng',
+      description: 'Xem, thêm, sửa, xóa thông tin người dùng',
+      icon: <Users className="h-10 w-10 text-blue-600" />,
+      path: '/user-management'
+    },
+    {
+      title: 'Quản lý đề thi',
+      description: 'Tạo và quản lý các đề thi, câu hỏi',
+      icon: <BookOpen className="h-10 w-10 text-green-600" />,
+      path: '/exam-list'
+    },
+    {
+      title: 'Quản lý phiên thi',
+      description: 'Lên lịch và quản lý các phiên thi',
+      icon: <ClipboardList className="h-10 w-10 text-purple-600" />,
+      path: '/session-list'
+    }
+  ];
+
   return (
-    <div className="min-h-screen bg-gradient-to-b from-red-50 to-white">
-      <header className="bg-military-red shadow-sm">
+    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
+      <header className="bg-blue-700 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
-          <h1 className="text-2xl font-bold text-white">Trang quản trị hệ thống</h1>
-          <Button variant="outline" onClick={handleLogout} className="flex items-center gap-2 bg-white text-military-red hover:bg-gray-100">
-            <LogOut className="h-4 w-4" />
-            Đăng xuất
-          </Button>
+          <h1 className="text-2xl font-bold text-white">Trang quản trị</h1>
+          <div className="flex items-center gap-4">
+            {user && (
+              <span className="text-white hidden md:block">
+                Xin chào, <span className="font-semibold">{user.fullName || user.username}</span>
+              </span>
+            )}
+            <Button variant="outline" onClick={handleLogout} className="flex items-center gap-2 bg-white text-blue-700 hover:bg-gray-100">
+              <LogOut className="h-4 w-4" />
+              Đăng xuất
+            </Button>
+          </div>
         </div>
       </header>
       
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          <div className="bg-white overflow-hidden shadow rounded-lg">
-            <div className="p-5">
-              <div className="flex items-center">
-                <div className="flex-shrink-0 bg-military-red p-3 rounded-md">
-                  <Users className="h-6 w-6 text-white" />
+        <h2 className="text-2xl font-semibold mb-8">Chức năng quản trị</h2>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {menuItems.map((item, index) => (
+            <Card key={index} className="hover:shadow-lg transition-shadow duration-300">
+              <CardHeader>
+                <div className="flex justify-center mb-4">
+                  {item.icon}
                 </div>
-                <div className="ml-5 w-0 flex-1">
-                  <dl>
-                    <dt className="text-sm font-medium text-gray-500 truncate">Quản lý người dùng</dt>
-                    <dd className="flex items-baseline">
-                      <div className="text-sm text-gray-700 mt-2">Thêm, xóa, sửa thông tin người dùng</div>
-                    </dd>
-                  </dl>
-                </div>
-              </div>
-            </div>
-            <div className="bg-gray-50 px-5 py-3">
-              <div className="text-sm">
+                <CardTitle className="text-center">{item.title}</CardTitle>
+                <CardDescription className="text-center">{item.description}</CardDescription>
+              </CardHeader>
+              <CardFooter>
                 <Button 
-                  variant="ghost" 
-                  className="font-medium text-military-red hover:bg-military-red hover:bg-opacity-10"
-                  onClick={() => navigate('/user-management')}
+                  className="w-full flex items-center justify-center gap-2"
+                  onClick={() => navigate(item.path)}
                 >
                   Truy cập
+                  <ArrowRight className="h-4 w-4" />
                 </Button>
-              </div>
-            </div>
-          </div>
-          
-          <div className="bg-white overflow-hidden shadow rounded-lg">
-            <div className="p-5">
-              <div className="flex items-center">
-                <div className="flex-shrink-0 bg-military-red p-3 rounded-md">
-                  <Users className="h-6 w-6 text-white" />
-                </div>
-                <div className="ml-5 w-0 flex-1">
-                  <dl>
-                    <dt className="text-sm font-medium text-gray-500 truncate">Quản lý thí sinh</dt>
-                    <dd className="flex items-baseline">
-                      <div className="text-sm text-gray-700 mt-2">Theo dõi thí sinh và kết quả thi</div>
-                    </dd>
-                  </dl>
-                </div>
-              </div>
-            </div>
-            <div className="bg-gray-50 px-5 py-3">
-              <div className="text-sm">
-                <Button 
-                  variant="ghost" 
-                  className="font-medium text-military-red hover:bg-military-red hover:bg-opacity-10"
-                  onClick={() => navigate('/candidate-list')}
-                >
-                  Truy cập
-                </Button>
-              </div>
-            </div>
-          </div>
-          
-          <div className="bg-white overflow-hidden shadow rounded-lg">
-            <div className="p-5">
-              <div className="flex items-center">
-                <div className="flex-shrink-0 bg-military-red p-3 rounded-md">
-                  <FileText className="h-6 w-6 text-white" />
-                </div>
-                <div className="ml-5 w-0 flex-1">
-                  <dl>
-                    <dt className="text-sm font-medium text-gray-500 truncate">Quản lý bài kiểm tra</dt>
-                    <dd className="flex items-baseline">
-                      <div className="text-sm text-gray-700 mt-2">Tạo, phân công, theo dõi bài kiểm tra</div>
-                    </dd>
-                  </dl>
-                </div>
-              </div>
-            </div>
-            <div className="bg-gray-50 px-5 py-3">
-              <div className="text-sm">
-                <Button 
-                  variant="ghost" 
-                  className="font-medium text-military-red hover:bg-military-red hover:bg-opacity-10"
-                  onClick={() => navigate('/exam-list')}
-                >
-                  Truy cập
-                </Button>
-              </div>
-            </div>
-          </div>
-          
-          <div className="bg-white overflow-hidden shadow rounded-lg">
-            <div className="p-5">
-              <div className="flex items-center">
-                <div className="flex-shrink-0 bg-military-red p-3 rounded-md">
-                  <Settings className="h-6 w-6 text-white" />
-                </div>
-                <div className="ml-5 w-0 flex-1">
-                  <dl>
-                    <dt className="text-sm font-medium text-gray-500 truncate">Cấu hình hệ thống</dt>
-                    <dd className="flex items-baseline">
-                      <div className="text-sm text-gray-700 mt-2">Thiết lập cấu hình và tùy chọn hệ thống</div>
-                    </dd>
-                  </dl>
-                </div>
-              </div>
-            </div>
-            <div className="bg-gray-50 px-5 py-3">
-              <div className="text-sm">
-                <Button variant="ghost" className="font-medium text-military-red hover:bg-military-red hover:bg-opacity-10">
-                  Truy cập
-                </Button>
-              </div>
-            </div>
-          </div>
+              </CardFooter>
+            </Card>
+          ))}
         </div>
       </main>
     </div>

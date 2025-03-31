@@ -1,117 +1,136 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
-import { toast } from 'sonner';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Loader2 } from "lucide-react";
+import { toast } from "sonner";
 import { authService } from '@/services/authService';
 
 const LoginPage = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    // Check if user is already logged in
+    const token = sessionStorage.getItem('authToken');
+    const userStr = sessionStorage.getItem('currentUser');
+    
+    if (token && userStr) {
+      try {
+        const user = JSON.parse(userStr);
+        // Redirect based on role
+        if (user.role === 'ADMIN') {
+          navigate('/admin-home');
+        } else {
+          navigate('/student-home');
+        }
+      } catch (error) {
+        console.error('Error parsing user data:', error);
+        // Clear invalid data
+        sessionStorage.removeItem('authToken');
+        sessionStorage.removeItem('currentUser');
+      }
+    }
+  }, [navigate]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!username || !password) {
+    if (!username.trim() || !password.trim()) {
       toast.error('Vui lòng nhập tên đăng nhập và mật khẩu');
       return;
     }
     
-    setIsLoading(true);
+    setLoading(true);
     
     try {
-      // Gọi API đăng nhập
       const response = await authService.login(username, password);
       
-      if (response.statusCode === 100 && response.result.authenticated) {
-        // Lưu token vào sessionStorage
-        sessionStorage.setItem('authToken', response.result.token);
+      if (response.statusCode === 0 && response.result?.authenticated) {
+        // Login successful
+        const token = response.result.token;
+        sessionStorage.setItem('authToken', token);
         
-        // Lấy thông tin người dùng
-        const userInfo = await authService.getUserInfo(response.result.token);
+        // Get user info
+        const userInfo = await authService.getUserInfo(token);
         
         if (userInfo) {
-          // Lưu thông tin người dùng vào sessionStorage
           sessionStorage.setItem('currentUser', JSON.stringify(userInfo));
+          toast.success('Đăng nhập thành công');
           
-          toast.success(`Đăng nhập thành công`);
-          
-          // Chuyển hướng dựa trên vai trò
-          if (userInfo.role === 'USER') {
-            navigate('/student-home');
-          } else if (userInfo.role === 'ADMIN') {
+          // Redirect based on role
+          if (userInfo.role === 'ADMIN') {
             navigate('/admin-home');
           } else {
-            navigate('/');
+            navigate('/student-home');
           }
         } else {
           toast.error('Không thể lấy thông tin người dùng');
         }
       } else {
-        toast.error(response.message || 'Đăng nhập thất bại');
+        // Login failed
+        toast.error(response.message || 'Đăng nhập thất bại. Vui lòng kiểm tra lại thông tin đăng nhập.');
       }
     } catch (error) {
-      console.error('Lỗi đăng nhập:', error);
+      console.error('Login error:', error);
       toast.error('Lỗi kết nối đến máy chủ');
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-military-light-red to-white">
-      <div className="w-full max-w-md p-8 space-y-8 bg-white rounded-xl shadow-lg">
-        <div className="text-center">
-          <h1 className="text-3xl font-bold text-military-dark-red">Đăng nhập</h1>
-          <p className="mt-2 text-gray-600">Đăng nhập để truy cập hệ thống</p>
-        </div>
-        
-        <form className="mt-8 space-y-6" onSubmit={handleLogin}>
-          <div className="space-y-4">
-            <div>
-              <label htmlFor="username" className="block text-sm font-medium text-gray-700">
-                Tên đăng nhập
-              </label>
-              <input
+    <div className="flex min-h-screen items-center justify-center bg-gray-100 p-4">
+      <Card className="w-full max-w-md">
+        <CardHeader>
+          <CardTitle className="text-center text-2xl">Đăng nhập</CardTitle>
+          <CardDescription className="text-center">
+            Vui lòng đăng nhập để tiếp tục
+          </CardDescription>
+        </CardHeader>
+        <form onSubmit={handleLogin}>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="username">Tên đăng nhập</Label>
+              <Input
                 id="username"
-                name="username"
-                type="text"
-                required
+                placeholder="Nhập tên đăng nhập"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-military-red focus:border-military-red"
+                required
               />
             </div>
-            
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-                Mật khẩu
-              </label>
-              <input
+            <div className="space-y-2">
+              <Label htmlFor="password">Mật khẩu</Label>
+              <Input
                 id="password"
-                name="password"
                 type="password"
-                required
+                placeholder="Nhập mật khẩu"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-military-red focus:border-military-red"
+                required
               />
             </div>
-          </div>
-
-          <div>
-            <Button 
-              type="submit" 
-              disabled={isLoading}
-              className="w-full flex justify-center py-2 px-4 bg-military-red hover:bg-military-dark-red text-white transition-colors"
-            >
-              {isLoading ? 'Đang xử lý...' : 'Đăng nhập'}
+          </CardContent>
+          <CardFooter>
+            <Button type="submit" className="w-full" disabled={loading}>
+              {loading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Đang đăng nhập
+                </>
+              ) : (
+                'Đăng nhập'
+              )}
             </Button>
-          </div>
+          </CardFooter>
         </form>
-      </div>
+      </Card>
     </div>
   );
 };

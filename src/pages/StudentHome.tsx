@@ -1,72 +1,171 @@
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { CheckCircle, LogOut } from 'lucide-react';
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Calendar, Clock, LogOut, ArrowRight } from 'lucide-react';
 import { toast } from 'sonner';
+import { sessionService, Session } from '@/services/sessionService';
 
 const StudentHome = () => {
   const navigate = useNavigate();
+  const [upcomingSessions, setUpcomingSessions] = useState<Session[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState<any>(null);
   
+  useEffect(() => {
+    const fetchUserInfo = () => {
+      const userStr = sessionStorage.getItem('currentUser');
+      if (userStr) {
+        try {
+          const userData = JSON.parse(userStr);
+          setUser(userData);
+        } catch (error) {
+          console.error('Error parsing user data:', error);
+        }
+      }
+    };
+
+    const fetchUpcomingSessions = async () => {
+      const token = sessionStorage.getItem('authToken');
+      if (!token) {
+        navigate('/login');
+        return;
+      }
+
+      try {
+        const sessions = await sessionService.getUpcomingSessions(token);
+        setUpcomingSessions(sessions);
+      } catch (error) {
+        console.error('Error fetching upcoming sessions:', error);
+        toast.error('Không thể tải danh sách bài kiểm tra sắp tới');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUserInfo();
+    fetchUpcomingSessions();
+  }, [navigate]);
+
   const handleLogout = () => {
     sessionStorage.removeItem('currentUser');
     sessionStorage.removeItem('authToken');
     toast.success('Đăng xuất thành công');
     navigate('/login');
   };
+
+  const formatDateTime = (dateTimeStr: string) => {
+    try {
+      const date = new Date(dateTimeStr);
+      return new Intl.DateTimeFormat('vi-VN', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      }).format(date);
+    } catch (error) {
+      return dateTimeStr;
+    }
+  };
+
+  const formatTimeLimit = (timeLimit: string) => {
+    // Convert PT2H30M format to readable format
+    try {
+      let hours = 0;
+      let minutes = 0;
+      
+      const hoursMatch = timeLimit.match(/(\d+)H/);
+      const minutesMatch = timeLimit.match(/(\d+)M/);
+      
+      if (hoursMatch) hours = parseInt(hoursMatch[1], 10);
+      if (minutesMatch) minutes = parseInt(minutesMatch[1], 10);
+      
+      let result = '';
+      if (hours > 0) result += `${hours} giờ `;
+      if (minutes > 0) result += `${minutes} phút`;
+      
+      return result.trim() || 'Không giới hạn';
+    } catch (error) {
+      return timeLimit;
+    }
+  };
   
-  const startTest = () => {
-    navigate('/test-confirmation');
+  const goToTestConfirmation = (sessionId: number) => {
+    navigate(`/test-confirmation/${sessionId}`);
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-red-50 to-white">
-      <header className="bg-military-red shadow-sm">
+      <header className="bg-blue-700 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
           <h1 className="text-2xl font-bold text-white">Trang chủ thí sinh</h1>
-          <Button variant="outline" onClick={handleLogout} className="flex items-center gap-2 bg-white text-military-red hover:bg-gray-100">
-            <LogOut className="h-4 w-4" />
-            Đăng xuất
-          </Button>
+          <div className="flex items-center gap-4">
+            {user && (
+              <span className="text-white hidden md:block">
+                Xin chào, <span className="font-semibold">{user.fullName || user.username}</span>
+              </span>
+            )}
+            <Button variant="outline" onClick={handleLogout} className="flex items-center gap-2 bg-white text-blue-700 hover:bg-gray-100">
+              <LogOut className="h-4 w-4" />
+              Đăng xuất
+            </Button>
+          </div>
         </div>
       </header>
       
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="bg-white shadow overflow-hidden sm:rounded-lg">
-          <div className="px-4 py-5 sm:px-6 bg-military-red bg-opacity-10">
-            <h2 className="text-lg font-medium text-gray-900">Bài kiểm tra sắp tới</h2>
+        <h2 className="text-xl font-semibold mb-6">Bài kiểm tra sắp tới</h2>
+        
+        {loading ? (
+          <div className="flex justify-center py-8">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-700"></div>
           </div>
-          <div className="border-t border-gray-200">
-            <dl>
-              <div className="bg-gray-50 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
-                <dt className="text-sm font-medium text-gray-500">Tên bài kiểm tra</dt>
-                <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">Kiểm tra Toán học</dd>
-              </div>
-              <div className="bg-white px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
-                <dt className="text-sm font-medium text-gray-500">Thời gian</dt>
-                <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">90 phút</dd>
-              </div>
-              <div className="bg-gray-50 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
-                <dt className="text-sm font-medium text-gray-500">Số câu hỏi</dt>
-                <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">50 câu</dd>
-              </div>
-              <div className="bg-white px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
-                <dt className="text-sm font-medium text-gray-500">Trạng thái</dt>
-                <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2 flex items-center">
-                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                    Sẵn sàng
-                  </span>
-                </dd>
-              </div>
-            </dl>
+        ) : upcomingSessions.length === 0 ? (
+          <div className="bg-white rounded-lg shadow p-6 text-center">
+            <p className="text-gray-500">Không có bài kiểm tra nào sắp tới</p>
           </div>
-          <div className="px-4 py-5 sm:px-6 flex justify-end">
-            <Button onClick={startTest} className="flex items-center gap-2 bg-military-red hover:bg-military-dark-red">
-              <CheckCircle className="h-4 w-4" />
-              Bắt đầu làm bài
-            </Button>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {upcomingSessions.map((session) => (
+              <Card key={session.sessionId} className="overflow-hidden">
+                <CardHeader className="bg-blue-50 border-b">
+                  <CardTitle className="text-lg font-medium">Mã phiên: {session.sessionId}</CardTitle>
+                </CardHeader>
+                <CardContent className="p-6 space-y-4">
+                  <div className="flex items-center gap-2">
+                    <Calendar className="h-5 w-5 text-blue-600" />
+                    <span className="text-sm">
+                      <strong>Thời gian bắt đầu:</strong> {formatDateTime(session.startTime)}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Clock className="h-5 w-5 text-blue-600" />
+                    <span className="text-sm">
+                      <strong>Thời gian làm bài:</strong> {formatTimeLimit(session.timeLimit)}
+                    </span>
+                  </div>
+                  <div>
+                    <Badge variant="outline" className="bg-green-50 text-green-700 border-green-300">
+                      Sẵn sàng
+                    </Badge>
+                  </div>
+                </CardContent>
+                <CardFooter className="bg-gray-50 px-6 py-3">
+                  <Button 
+                    onClick={() => goToTestConfirmation(session.sessionId!)}
+                    className="w-full flex items-center justify-center gap-2"
+                  >
+                    Vào làm bài
+                    <ArrowRight className="h-4 w-4" />
+                  </Button>
+                </CardFooter>
+              </Card>
+            ))}
           </div>
-        </div>
+        )}
       </main>
     </div>
   );
