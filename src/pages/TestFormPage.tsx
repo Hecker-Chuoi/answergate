@@ -123,10 +123,12 @@ const TestFormPage = () => {
             {isEditing ? 'Chỉnh sửa bài kiểm tra' : 'Tạo bài kiểm tra mới'}
           </h1>
         </div>
-        <Button onClick={handleSave} disabled={saving}>
-          <Save className="h-4 w-4 mr-2" />
-          {saving ? 'Đang lưu...' : 'Lưu'}
-        </Button>
+        {activeTab === "details" && (
+          <Button onClick={handleSave} disabled={saving}>
+            <Save className="h-4 w-4 mr-2" />
+            {saving ? 'Đang lưu...' : 'Lưu'}
+          </Button>
+        )}
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
@@ -196,7 +198,10 @@ const TestFormPage = () => {
         
         {isEditing && (
           <TabsContent value="questions">
-            <TestQuestionEditor testId={Number(id)} token={token} />
+            <TestQuestionEditor 
+              testId={Number(id)} 
+              token={token}
+            />
           </TabsContent>
         )}
       </Tabs>

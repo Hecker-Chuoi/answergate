@@ -12,6 +12,20 @@ export interface TestUpdateRequest {
   subject: string;
 }
 
+export interface Answer {
+  answerId?: number;
+  answerText: string;
+  isCorrect: boolean;
+}
+
+export interface Question {
+  questionId?: number;
+  questionText: string;
+  questionType: 'SINGLE_CHOICE' | 'MULTIPLE_CHOICES';
+  explainText?: string;
+  answers: Answer[];
+}
+
 export interface Test {
   testId: number;
   testName: string;
@@ -131,7 +145,7 @@ const testService = {
     }
   },
 
-  getTestQuestions: async (token: string, testId: number) => {
+  getTestQuestions: async (token: string, testId: number): Promise<Question[]> => {
     try {
       const response = await fetch(`${API_URL}/test/${testId}/questions`, {
         headers: {
@@ -146,7 +160,7 @@ const testService = {
     }
   },
 
-  setTestQuestions: async (token: string, testId: number, questions: QuestionCreationRequest[]) => {
+  setTestQuestions: async (token: string, testId: number, questions: QuestionCreationRequest[]): Promise<Test> => {
     try {
       const response = await fetch(`${API_URL}/test/${testId}/questions`, {
         method: 'POST',

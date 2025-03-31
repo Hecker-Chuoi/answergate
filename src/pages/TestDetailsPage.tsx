@@ -6,10 +6,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { ArrowLeft, Edit, Trash2, AlertCircle } from "lucide-react";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { testService } from '@/services/testService';
-import { Question } from '@/services/sessionService';
 
 import TestQuestionNavigation from '@/components/TestQuestionNavigation';
 
@@ -19,7 +18,7 @@ const TestDetailsPage = () => {
   
   const [loading, setLoading] = useState(true);
   const [test, setTest] = useState<any>(null);
-  const [questions, setQuestions] = useState<Question[]>([]);
+  const [questions, setQuestions] = useState<any[]>([]);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
@@ -171,28 +170,29 @@ const TestDetailsPage = () => {
         </TabsContent>
         
         <TabsContent value="questions">
-          <div className="flex h-[calc(100vh-12rem)]">
-            {/* Sidebar with question navigation */}
-            <div className="w-64 hidden md:block">
-              <TestQuestionNavigation 
-                questions={questions} 
-                currentQuestionIndex={currentQuestionIndex}
-                onQuestionChange={handleChangeQuestion}
-              />
-            </div>
+          <div className="flex flex-col h-[calc(100vh-12rem)]">
+            {/* Header with test info */}
+            <Card className="mb-4">
+              <CardHeader className="py-3">
+                <CardTitle>
+                  {test.testName} - {test.subject}
+                </CardTitle>
+              </CardHeader>
+            </Card>
             
-            {/* Main content with questions */}
-            <div className="flex-1">
-              <Card className="mb-4">
-                <CardHeader className="pb-2">
-                  <CardTitle>
-                    {test.testName} - {test.subject}
-                  </CardTitle>
-                </CardHeader>
-              </Card>
+            <div className="flex h-[calc(100vh-16rem)] gap-4">
+              {/* Sidebar with question navigation */}
+              <div className="w-64 hidden md:block">
+                <TestQuestionNavigation 
+                  questions={questions} 
+                  currentQuestionIndex={currentQuestionIndex}
+                  onQuestionChange={handleChangeQuestion}
+                />
+              </div>
               
-              <ScrollArea className="h-[calc(100vh-16rem)]">
-                <div className="pr-4 space-y-6">
+              {/* Main content with questions */}
+              <div className="flex-1">
+                <ScrollArea className="h-full pr-4">
                   {questions.length === 0 ? (
                     <Card className="p-6 text-center">
                       <div className="flex flex-col items-center justify-center p-8">
@@ -209,55 +209,57 @@ const TestDetailsPage = () => {
                       </div>
                     </Card>
                   ) : (
-                    questions.map((question, index) => (
-                      <Card key={question.questionId} id={`question-${index}`} className="p-6">
-                        <div className="flex items-center justify-between mb-2">
-                          <h3 className="font-medium text-gray-800">
-                            Câu {index + 1}
-                          </h3>
-                          <span className="text-xs bg-gray-100 px-2 py-1 rounded">
-                            {question.questionType === 'SINGLE_CHOICE' ? 'Một đáp án' : 'Nhiều đáp án'}
-                          </span>
-                        </div>
-                        
-                        <div className="bg-gray-50 p-4 rounded-lg mb-4">
-                          {question.questionText}
-                        </div>
-                        
-                        <div className="space-y-2">
-                          {question.answers.map((answer, answerIndex) => (
-                            <div 
-                              key={answer.answerId}
-                              className={`p-3 rounded-lg border ${answer.isCorrect ? 'border-green-200 bg-green-50' : 'border-gray-200'}`}
-                            >
-                              <div className="flex items-start">
-                                <div className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center text-sm mr-3 flex-shrink-0">
-                                  {letterMap[answerIndex]}
-                                </div>
-                                <div className="flex-1">
-                                  {answer.answerText}
-                                </div>
-                                {answer.isCorrect && (
-                                  <div className="ml-2 text-green-600 text-xs font-medium px-2 py-1 bg-green-50 rounded-full">
-                                    Đúng
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                        
-                        {question.explainText && (
-                          <div className="mt-4 p-3 border border-blue-100 bg-blue-50 rounded-lg">
-                            <p className="text-sm font-medium text-blue-800 mb-1">Giải thích:</p>
-                            <p className="text-sm text-blue-700">{question.explainText}</p>
+                    <div className="space-y-6">
+                      {questions.map((question, index) => (
+                        <Card key={question.questionId || index} id={`question-${index}`} className="p-6">
+                          <div className="flex items-center justify-between mb-2">
+                            <h3 className="font-medium text-gray-800">
+                              Câu {index + 1}
+                            </h3>
+                            <span className="text-xs bg-gray-100 px-2 py-1 rounded">
+                              {question.questionType === 'SINGLE_CHOICE' ? 'Một đáp án' : 'Nhiều đáp án'}
+                            </span>
                           </div>
-                        )}
-                      </Card>
-                    ))
+                          
+                          <div className="bg-gray-50 p-4 rounded-lg mb-4">
+                            {question.questionText}
+                          </div>
+                          
+                          <div className="space-y-2">
+                            {question.answers.map((answer: any, answerIndex: number) => (
+                              <div 
+                                key={answer.answerId || answerIndex}
+                                className={`p-3 rounded-lg border ${answer.isCorrect ? 'border-green-200 bg-green-50' : 'border-gray-200'}`}
+                              >
+                                <div className="flex items-start">
+                                  <div className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center text-sm mr-3 flex-shrink-0">
+                                    {letterMap[answerIndex]}
+                                  </div>
+                                  <div className="flex-1">
+                                    {answer.answerText}
+                                  </div>
+                                  {answer.isCorrect && (
+                                    <div className="ml-2 text-green-600 text-xs font-medium px-2 py-1 bg-green-50 rounded-full">
+                                      Đáp án đúng
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                          
+                          {question.explainText && (
+                            <div className="mt-4 p-3 border border-blue-100 bg-blue-50 rounded-lg">
+                              <p className="text-sm font-medium text-blue-800 mb-1">Giải thích:</p>
+                              <p className="text-sm text-blue-700">{question.explainText}</p>
+                            </div>
+                          )}
+                        </Card>
+                      ))}
+                    </div>
                   )}
-                </div>
-              </ScrollArea>
+                </ScrollArea>
+              </div>
             </div>
           </div>
         </TabsContent>
