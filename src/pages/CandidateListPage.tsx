@@ -1,56 +1,47 @@
 
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { format } from 'date-fns';
+import { useParams } from 'react-router-dom';
 import { userService, User, UserCreationRequest } from '@/services/userService';
 import { sessionService } from '@/services/sessionService';
-import { toast } from "sonner";
-import { Eye, Trash2, UserPlus, CheckCircle2, Users, Filter } from "lucide-react";
+import { Button } from '@/components/ui/button';
+import { toast } from 'sonner';
+import { Plus, Search } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 const CandidateListPage = () => {
-  const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
+  const { sessionId } = useParams<{ sessionId: string }>();
   const [candidates, setCandidates] = useState<User[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [searchTerm, setSearchTerm] = useState<string>('');
-  const [showAddUserDialog, setShowAddUserDialog] = useState<boolean>(false);
-  const [showAddByTypeDialog, setShowAddByTypeDialog] = useState<boolean>(false);
+  const [loading, setLoading] = useState(true);
+  const [showAddDialog, setShowAddDialog] = useState(false);
+  const [activeTab, setActiveTab] = useState('users');
+  const [searchQuery, setSearchQuery] = useState('');
   const [selectedUsernames, setSelectedUsernames] = useState<string[]>([]);
   const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
-  const [users, setUsers] = useState<User[]>([]);
-
-  // New user form state
-  const [newUser, setNewUser] = useState<UserCreationRequest>({
-    fullName: '',
-    dob: '',
-    gender: 'MALE', // Default value to avoid type error
-    type: 'Chiến sĩ', // Default value
-    phoneNumber: '',
-    mail: '',
-    hometown: '',
-  });
-
+  const [availableUsers, setAvailableUsers] = useState<User[]>([]);
+  const [isAdding, setIsAdding] = useState(false);
+  
   const token = localStorage.getItem('token') || '';
-  const sessionId = Number(id);
-
+  
   useEffect(() => {
     const fetchCandidates = async () => {
-      if (!sessionId) return;
-      
-      setLoading(true);
       try {
-        const candidates = await sessionService.getSessionCandidates(token, sessionId);
-        setCandidates(candidates);
+        const fetchedCandidates = await sessionService.getCandidates(token, Number(sessionId));
+        setCandidates(fetchedCandidates);
+        
+        // Also fetch all users for selection
+        const allUsers = await userService.getAllUsers(token);
+        setAvailableUsers(allUsers);
       } catch (error) {
         console.error('Error fetching candidates:', error);
         toast.error('Không thể tải danh sách thí sinh');
@@ -58,321 +49,259 @@ const CandidateListPage = () => {
         setLoading(false);
       }
     };
-
+    
     fetchCandidates();
   }, [sessionId, token]);
-
-  const fetchAllUsers = async () => {
-    try {
-      const fetchedUsers = await userService.getAllUsers(token);
-      setUsers(fetchedUsers.filter(user => user.role === 'USER'));
-    } catch (error) {
-      console.error('Error fetching users:', error);
-      toast.error('Không thể tải danh sách người dùng');
-    }
-  };
-
-  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchTerm(e.target.value);
-  };
-
-  const handleUserSelection = (username: string) => {
-    setSelectedUsernames(prev => 
-      prev.includes(username) ? prev.filter(u => u !== username) : [...prev, username]
-    );
-  };
-
-  const handleTypeSelection = (type: string) => {
-    setSelectedTypes(prev => 
-      prev.includes(type) ? prev.filter(t => t !== type) : [...prev, type]
-    );
-  };
-
-  const assignCandidatesByUsernames = async () => {
-    if (!selectedUsernames.length) {
-      toast.warning('Vui lòng chọn ít nhất một người dùng');
+  
+  const handleAddByUsernames = async () => {
+    if (selectedUsernames.length === 0) {
+      toast.error('Vui lòng chọn ít nhất một người dùng');
       return;
     }
-
+    
+    setIsAdding(true);
     try {
-      await sessionService.assignCandidatesByUsernames(token, sessionId, selectedUsernames);
-      toast.success('Thêm thí sinh thành công');
-      // Refresh candidate list
-      const updatedCandidates = await sessionService.getSessionCandidates(token, sessionId);
+      await sessionService.assignCandidatesByUsernames(token, Number(sessionId), selectedUsernames);
+      
+      const updatedCandidates = await sessionService.getCandidates(token, Number(sessionId));
       setCandidates(updatedCandidates);
-      setShowAddUserDialog(false);
+      
+      toast.success('Thêm thí sinh thành công');
+      setShowAddDialog(false);
       setSelectedUsernames([]);
     } catch (error) {
-      console.error('Error assigning candidates:', error);
+      console.error('Error adding candidates:', error);
       toast.error('Không thể thêm thí sinh');
+    } finally {
+      setIsAdding(false);
     }
   };
-
-  const assignCandidatesByTypes = async () => {
-    if (!selectedTypes.length) {
-      toast.warning('Vui lòng chọn ít nhất một loại người dùng');
+  
+  const handleAddByTypes = async () => {
+    if (selectedTypes.length === 0) {
+      toast.error('Vui lòng chọn ít nhất một loại');
       return;
     }
-
+    
+    setIsAdding(true);
     try {
-      await sessionService.assignCandidatesByTypes(token, sessionId, selectedTypes);
-      toast.success('Thêm thí sinh thành công');
-      // Refresh candidate list
-      const updatedCandidates = await sessionService.getSessionCandidates(token, sessionId);
+      await sessionService.assignCandidatesByTypes(token, Number(sessionId), selectedTypes);
+      
+      const updatedCandidates = await sessionService.getCandidates(token, Number(sessionId));
       setCandidates(updatedCandidates);
-      setShowAddByTypeDialog(false);
+      
+      toast.success('Thêm thí sinh thành công');
+      setShowAddDialog(false);
       setSelectedTypes([]);
     } catch (error) {
-      console.error('Error assigning candidates by type:', error);
-      toast.error('Không thể thêm thí sinh theo loại');
+      console.error('Error adding candidates by types:', error);
+      toast.error('Không thể thêm thí sinh');
+    } finally {
+      setIsAdding(false);
     }
   };
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setNewUser(prev => ({ ...prev, [name]: value }));
+  
+  const toggleUserSelection = (username: string) => {
+    setSelectedUsernames(prev => 
+      prev.includes(username)
+        ? prev.filter(u => u !== username)
+        : [...prev, username]
+    );
   };
-
-  const handleGenderChange = (value: string) => {
-    // Ensure value is one of the allowed gender types
-    const gender = (value === 'MALE' || value === 'FEMALE' || value === 'OTHER') 
-      ? value 
-      : 'MALE'; // Default to MALE if invalid value
-    
-    setNewUser(prev => ({ ...prev, gender }));
+  
+  const toggleTypeSelection = (type: string) => {
+    setSelectedTypes(prev => 
+      prev.includes(type)
+        ? prev.filter(t => t !== type)
+        : [...prev, type]
+    );
   };
-
-  const handleTypeChange = (value: string) => {
-    setNewUser(prev => ({ ...prev, type: value }));
-  };
-
-  const handleCreateUser = async () => {
-    try {
-      const createdUser = await userService.createUser(token, newUser);
-      if (createdUser) {
-        toast.success('Tạo người dùng thành công');
-        // Reset form
-        setNewUser({
-          fullName: '',
-          dob: '',
-          gender: 'MALE',
-          type: 'Chiến sĩ',
-          phoneNumber: '',
-          mail: '',
-          hometown: '',
-        });
-        // Refresh user list
-        fetchAllUsers();
-      }
-    } catch (error) {
-      console.error('Error creating user:', error);
-      toast.error('Không thể tạo người dùng');
-    }
-  };
-
-  const filteredCandidates = candidates.filter(candidate => 
-    candidate.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    candidate.fullName?.toLowerCase().includes(searchTerm.toLowerCase())
+  
+  const filteredUsers = availableUsers.filter(user => 
+    user.fullName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    user.username?.toLowerCase().includes(searchQuery.toLowerCase())
   );
-
-  const nonCandidateUsers = users.filter(
-    user => !candidates.some(candidate => candidate.username === user.username)
-  );
-
-  const filteredUsers = nonCandidateUsers.filter(user => 
-    user.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    user.fullName?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
+  
+  const isUserAlreadyCandidate = (username: string) => {
+    return candidates.some(candidate => candidate.username === username);
+  };
+  
   return (
-    <div className="container mx-auto py-6">
+    <div className="p-6">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">Danh sách thí sinh</h1>
-        <div className="flex space-x-2">
-          <Dialog open={showAddUserDialog} onOpenChange={setShowAddUserDialog}>
-            <DialogTrigger asChild>
-              <Button onClick={fetchAllUsers} variant="outline">
-                <UserPlus className="mr-2 h-4 w-4" />
-                Thêm thí sinh
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-4xl">
-              <DialogHeader>
-                <DialogTitle>Thêm thí sinh</DialogTitle>
-              </DialogHeader>
-              <div className="grid grid-cols-1 gap-4">
-                <div className="flex space-x-2 mb-4">
-                  <Input
-                    placeholder="Tìm kiếm theo tên hoặc tên đăng nhập"
-                    value={searchTerm}
-                    onChange={handleSearchChange}
-                    className="flex-1"
-                  />
-                </div>
-                <div className="border rounded-md p-4">
-                  <h3 className="font-medium mb-2">Người dùng hiện có:</h3>
-                  <div className="max-h-60 overflow-y-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead className="w-10"></TableHead>
-                          <TableHead>Tên đăng nhập</TableHead>
-                          <TableHead>Họ tên</TableHead>
-                          <TableHead>Loại</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {filteredUsers.map((user) => (
-                          <TableRow key={user.username} className="cursor-pointer"
-                            onClick={() => handleUserSelection(user.username)}>
-                            <TableCell>
-                              <div className={`w-5 h-5 rounded-full border ${
-                                selectedUsernames.includes(user.username) 
-                                  ? 'bg-primary border-primary' 
-                                  : 'border-gray-300'
-                              } flex items-center justify-center`}>
-                                {selectedUsernames.includes(user.username) && (
-                                  <CheckCircle2 className="h-4 w-4 text-white" />
-                                )}
-                              </div>
-                            </TableCell>
-                            <TableCell>{user.username}</TableCell>
-                            <TableCell>{user.fullName}</TableCell>
-                            <TableCell>{user.type}</TableCell>
-                          </TableRow>
-                        ))}
-                        {filteredUsers.length === 0 && (
-                          <TableRow>
-                            <TableCell colSpan={4} className="text-center py-4">
-                              Không tìm thấy người dùng nào
-                            </TableCell>
-                          </TableRow>
-                        )}
-                      </TableBody>
-                    </Table>
-                  </div>
-                </div>
-              </div>
-              <div className="flex justify-end space-x-2 mt-4">
-                <Button variant="outline" onClick={() => setShowAddUserDialog(false)}>
-                  Hủy
-                </Button>
-                <Button onClick={assignCandidatesByUsernames} disabled={selectedUsernames.length === 0}>
-                  Thêm ({selectedUsernames.length})
-                </Button>
-              </div>
-            </DialogContent>
-          </Dialog>
-          
-          <Dialog open={showAddByTypeDialog} onOpenChange={setShowAddByTypeDialog}>
-            <DialogTrigger asChild>
-              <Button variant="outline">
-                <Filter className="mr-2 h-4 w-4" />
-                Thêm theo loại
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Thêm thí sinh theo loại</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4 mt-4">
-                <div className="flex items-center space-x-2">
-                  <input
-                    type="checkbox"
-                    id="type-soldier"
-                    checked={selectedTypes.includes('Chiến sĩ')}
-                    onChange={() => handleTypeSelection('Chiến sĩ')}
-                    className="h-4 w-4"
-                  />
-                  <Label htmlFor="type-soldier">Chiến sĩ</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <input
-                    type="checkbox"
-                    id="type-officer"
-                    checked={selectedTypes.includes('Sĩ quan')}
-                    onChange={() => handleTypeSelection('Sĩ quan')}
-                    className="h-4 w-4"
-                  />
-                  <Label htmlFor="type-officer">Sĩ quan</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <input
-                    type="checkbox"
-                    id="type-pro"
-                    checked={selectedTypes.includes('Chuyên nghiệp')}
-                    onChange={() => handleTypeSelection('Chuyên nghiệp')}
-                    className="h-4 w-4"
-                  />
-                  <Label htmlFor="type-pro">Chuyên nghiệp</Label>
-                </div>
-              </div>
-              <div className="flex justify-end space-x-2 mt-4">
-                <Button variant="outline" onClick={() => setShowAddByTypeDialog(false)}>
-                  Hủy
-                </Button>
-                <Button onClick={assignCandidatesByTypes} disabled={selectedTypes.length === 0}>
-                  Thêm
-                </Button>
-              </div>
-            </DialogContent>
-          </Dialog>
-        </div>
+        <h1 className="text-xl font-medium">Danh sách thí sinh</h1>
+        <Button onClick={() => setShowAddDialog(true)}>
+          <Plus className="h-4 w-4 mr-2" />
+          Thêm thí sinh
+        </Button>
       </div>
       
-      <Card>
-        <CardHeader>
-          <div className="flex justify-between items-center">
-            <CardTitle>Danh sách thí sinh</CardTitle>
-            <div className="w-1/3">
-              <Input
-                placeholder="Tìm kiếm theo tên hoặc tên đăng nhập"
-                value={searchTerm}
-                onChange={handleSearchChange}
-              />
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <div className="text-center py-4">Đang tải...</div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Tên đăng nhập</TableHead>
-                  <TableHead>Họ tên</TableHead>
-                  <TableHead>Ngày sinh</TableHead>
-                  <TableHead>Giới tính</TableHead>
-                  <TableHead>Loại</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredCandidates.length > 0 ? (
-                  filteredCandidates.map((candidate) => (
-                    <TableRow key={candidate.username}>
-                      <TableCell>{candidate.username}</TableCell>
-                      <TableCell>{candidate.fullName}</TableCell>
-                      <TableCell>{candidate.dob ? format(new Date(candidate.dob), 'dd/MM/yyyy') : 'N/A'}</TableCell>
-                      <TableCell>
-                        {candidate.gender === 'MALE' ? 'Nam' : 
-                         candidate.gender === 'FEMALE' ? 'Nữ' : 'Khác'}
-                      </TableCell>
-                      <TableCell>{candidate.type}</TableCell>
-                    </TableRow>
-                  ))
+      {loading ? (
+        <p className="text-center py-10">Đang tải...</p>
+      ) : candidates.length === 0 ? (
+        <div className="text-center py-12 border rounded-lg bg-gray-50">
+          <h3 className="text-lg font-medium mb-2">Chưa có thí sinh nào</h3>
+          <p className="text-gray-500 mb-6">Hãy thêm thí sinh vào phiên thi này</p>
+          <Button onClick={() => setShowAddDialog(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Thêm thí sinh
+          </Button>
+        </div>
+      ) : (
+        <div className="border rounded-lg overflow-hidden">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tên đăng nhập</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Họ tên</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Loại</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Giới tính</th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {candidates.map((candidate) => (
+                <tr key={candidate.userId}>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm font-medium text-gray-900">{candidate.username}</div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm text-gray-900">{candidate.fullName}</div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm text-gray-900">{candidate.type}</div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm text-gray-900">
+                      {candidate.gender === 'MALE' ? 'Nam' : 
+                       candidate.gender === 'FEMALE' ? 'Nữ' : 'Khác'}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      
+      <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Thêm thí sinh</DialogTitle>
+            <DialogDescription>
+              Thêm thí sinh vào phiên thi này bằng cách chọn người dùng hoặc theo loại.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <Tabs value={activeTab} onValueChange={setActiveTab}>
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="users">Theo người dùng</TabsTrigger>
+              <TabsTrigger value="types">Theo loại</TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="users" className="space-y-4 py-4">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                <Input
+                  placeholder="Tìm kiếm người dùng..."
+                  className="pl-10"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </div>
+              
+              <div className="border rounded-lg overflow-hidden max-h-80 overflow-y-auto">
+                {filteredUsers.length === 0 ? (
+                  <p className="text-center py-4 text-gray-500">Không tìm thấy người dùng</p>
                 ) : (
-                  <TableRow>
-                    <TableCell colSpan={5} className="text-center py-4">
-                      {searchTerm ? 'Không tìm thấy thí sinh nào' : 'Chưa có thí sinh nào'}
-                    </TableCell>
-                  </TableRow>
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Chọn</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tên đăng nhập</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Họ tên</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Loại</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {filteredUsers.map((user) => {
+                        const isAlreadyCandidate = isUserAlreadyCandidate(user.username);
+                        
+                        return (
+                          <tr key={user.userId} className={isAlreadyCandidate ? 'bg-gray-50' : ''}>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <input
+                                type="checkbox"
+                                checked={selectedUsernames.includes(user.username) || isAlreadyCandidate}
+                                onChange={() => toggleUserSelection(user.username)}
+                                disabled={isAlreadyCandidate}
+                                className="h-4 w-4 text-blue-600 rounded"
+                              />
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm font-medium text-gray-900">{user.username}</div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm text-gray-900">{user.fullName}</div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm text-gray-900">{user.type}</div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
                 )}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
+              </div>
+            </TabsContent>
+            
+            <TabsContent value="types" className="space-y-4 py-4">
+              <div className="space-y-3">
+                <Label className="text-base">Chọn loại người dùng</Label>
+                <div className="grid grid-cols-3 gap-4">
+                  {['Chiến sĩ', 'Sĩ quan', 'Chuyên nghiệp'].map(type => (
+                    <div 
+                      key={type} 
+                      className={`p-4 border rounded-lg cursor-pointer ${
+                        selectedTypes.includes(type) ? 'bg-blue-50 border-blue-300' : ''
+                      }`}
+                      onClick={() => toggleTypeSelection(type)}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium">{type}</span>
+                        {selectedTypes.includes(type) && (
+                          <div className="h-3 w-3 bg-blue-500 rounded-full"></div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </TabsContent>
+          </Tabs>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => {
+              setShowAddDialog(false);
+              setSelectedUsernames([]);
+              setSelectedTypes([]);
+              setSearchQuery('');
+            }}>
+              Hủy
+            </Button>
+            <Button 
+              onClick={activeTab === 'users' ? handleAddByUsernames : handleAddByTypes}
+              disabled={
+                isAdding || 
+                (activeTab === 'users' && selectedUsernames.length === 0) || 
+                (activeTab === 'types' && selectedTypes.length === 0)
+              }
+            >
+              {isAdding ? 'Đang thêm...' : 'Thêm thí sinh'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

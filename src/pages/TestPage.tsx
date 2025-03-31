@@ -1,17 +1,24 @@
 
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useTest } from '@/context/TestContext';
 import QuestionCard from '@/components/QuestionCard';
-import QuestionNavigation from '@/components/QuestionNavigation';
 import TestTimer from '@/components/TestTimer';
 import { Button } from '@/components/ui/button';
-import { ChevronLeft, ChevronRight, AlertTriangle, ArrowLeft, Maximize, Search, ZoomIn, ZoomOut, List } from 'lucide-react';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { 
+  ChevronLeft, ChevronRight, AlertTriangle, 
+  ArrowLeft, X, Send
+} from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 const TestPage = () => {
   const navigate = useNavigate();
-  const { currentTest, navigateToQuestion, endTest, isTimeUp } = useTest();
+  const { sessionId } = useParams<{ sessionId: string }>();
+  const { 
+    currentTest, navigateToQuestion, endTest, 
+    isTimeUp, currentQuestion, answerQuestion
+  } = useTest();
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [studentName, setStudentName] = useState('Nguyễn Hữu Tiến');
   
@@ -26,8 +33,8 @@ const TestPage = () => {
     if (userStr) {
       try {
         const user = JSON.parse(userStr);
-        if (user.username === 'student') {
-          setStudentName('Nguyễn Hữu Tiến');
+        if (user.username) {
+          setStudentName(user.fullName || user.username);
         }
       } catch (error) {
         console.error('Error parsing user data:', error);
@@ -39,112 +46,135 @@ const TestPage = () => {
     return null;
   }
   
-  const { currentQuestionIndex } = currentTest;
-  const totalQuestions = currentTest.test.questions.length;
-  const questionNumber = currentQuestionIndex + 1;
-  
-  const goToPrevious = () => {
-    if (currentQuestionIndex > 0) {
-      navigateToQuestion(currentQuestionIndex - 1);
-    }
-  };
-  
-  const goToNext = () => {
-    if (currentQuestionIndex < totalQuestions - 1) {
-      navigateToQuestion(currentQuestionIndex + 1);
-    }
-  };
-  
   const handleEndTest = () => {
     endTest();
-    navigate('/results');
+    navigate(`/results/${sessionId}`);
   };
   
   const confirmEndTest = () => {
     setShowConfirmDialog(true);
   };
   
+  const { totalQuestions, userAnswers } = currentTest;
+  const answeredCount = userAnswers.filter(a => a.selectedOptionId !== null).length;
+  const markedCount = userAnswers.filter(a => a.isMarked).length;
+  
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-b from-blue-50 to-white">
-      <header className="sticky top-0 z-10 bg-white shadow-sm">
+    <div className="min-h-screen flex flex-col bg-slate-50">
+      {/* Header with test name and navigation */}
+      <header className="sticky top-0 z-10 bg-white shadow-sm border-b border-gray-200">
         <div className="container mx-auto px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center">
+          <div className="flex items-center space-x-4">
             <Button variant="ghost" onClick={() => navigate(-1)} className="mr-2">
               <ArrowLeft className="w-5 h-5" />
-              <span className="ml-1">Quay lại</span>
+              <span className="sr-only">Quay lại</span>
             </Button>
-            <h1 className="text-lg font-medium">
-              Thí sinh: {studentName}
+            <h1 className="text-lg font-medium truncate">
+              {currentTest.test.title} - {currentTest.test.description}
             </h1>
           </div>
           
           <div className="flex items-center space-x-4">
             <TestTimer />
-            
-            <div className="flex items-center space-x-2">
-              <Button variant="ghost" size="icon" className="rounded-full">
-                <Search className="w-5 h-5" />
-              </Button>
-              <Button variant="ghost" size="icon" className="rounded-full">
-                <ZoomIn className="w-5 h-5" />
-              </Button>
-              <Button variant="ghost" size="icon" className="rounded-full">
-                <ZoomOut className="w-5 h-5" />
-              </Button>
-              <Button variant="ghost" size="icon" className="rounded-full">
-                <List className="w-5 h-5" />
-              </Button>
-              <Button variant="ghost" size="icon" className="rounded-full">
-                <Maximize className="w-5 h-5" />
-              </Button>
-            </div>
-            
             <Button 
               onClick={confirmEndTest}
-              className="bg-blue-600 hover:bg-blue-700 text-white"
+              variant="default"
+              className="bg-blue-600 hover:bg-blue-700"
             >
+              <Send className="w-4 h-4 mr-2" />
               Nộp bài
             </Button>
           </div>
         </div>
       </header>
       
-      <div className="flex-grow flex">
-        <main className="flex-grow p-6">
-          <div className="max-w-3xl mx-auto">
-            <QuestionCard questionNumber={questionNumber} />
-            
-            <div className="mt-8 flex items-center justify-between">
-              <Button
-                onClick={goToPrevious}
-                disabled={currentQuestionIndex === 0}
-                className="btn-nav btn-secondary"
-              >
-                <ChevronLeft className="w-4 h-4 mr-1" />
-                Câu trước
-              </Button>
-              
-              <Button
-                onClick={goToNext}
-                disabled={currentQuestionIndex === totalQuestions - 1}
-                className="btn-nav btn-primary"
-              >
-                Câu sau
-                <ChevronRight className="w-4 h-4 ml-1" />
-              </Button>
+      {/* Main content area with sidebar and question list */}
+      <div className="flex flex-1 overflow-hidden">
+        {/* Question navigation sidebar */}
+        <aside className="w-64 border-r border-gray-200 bg-white hidden md:block">
+          <div className="p-4 border-b border-gray-200">
+            <h2 className="font-medium text-gray-700">Thí sinh: {studentName}</h2>
+            <div className="mt-2 grid grid-cols-3 gap-2 text-sm">
+              <div className="flex flex-col items-center">
+                <span className="text-lg font-semibold text-blue-600">{answeredCount}</span>
+                <span className="text-gray-500 text-xs">Đã trả lời</span>
+              </div>
+              <div className="flex flex-col items-center">
+                <span className="text-lg font-semibold text-amber-500">{markedCount}</span>
+                <span className="text-gray-500 text-xs">Đánh dấu</span>
+              </div>
+              <div className="flex flex-col items-center">
+                <span className="text-lg font-semibold text-gray-600">{totalQuestions - answeredCount}</span>
+                <span className="text-gray-500 text-xs">Còn lại</span>
+              </div>
             </div>
           </div>
-        </main>
-        
-        <aside className="w-80 h-[calc(100vh-64px)] sticky top-16 border-l border-gray-200">
-          <QuestionNavigation />
+          
+          <ScrollArea className="h-[calc(100vh-10rem)]">
+            <div className="p-4">
+              <h3 className="font-medium mb-3 text-gray-700">Danh sách câu hỏi</h3>
+              <div className="grid grid-cols-4 gap-2">
+                {currentTest.userAnswers.map((answer, index) => {
+                  const isAnswered = answer.selectedOptionId !== null;
+                  const isMarked = answer.isMarked;
+                  const isCurrent = currentQuestion?.id === currentTest.test.questions[index].id;
+                  
+                  return (
+                    <Button
+                      key={index}
+                      size="sm"
+                      variant={isCurrent ? "default" : isAnswered ? "outline" : "ghost"} 
+                      className={`relative p-0 h-10 w-10 ${
+                        isCurrent ? 'bg-blue-600' : isAnswered ? 'border-blue-300 text-blue-600' : ''
+                      } ${isMarked ? 'ring-2 ring-amber-400' : ''}`}
+                      onClick={() => navigateToQuestion(index)}
+                    >
+                      <span>{index + 1}</span>
+                      {isMarked && (
+                        <div className="absolute -top-1 -right-1 w-2 h-2 bg-amber-400 rounded-full" />
+                      )}
+                    </Button>
+                  );
+                })}
+              </div>
+            </div>
+          </ScrollArea>
         </aside>
+        
+        {/* Question display area */}
+        <main className="flex-1 overflow-auto">
+          <ScrollArea className="h-[calc(100vh-4rem)]">
+            <div className="container mx-auto px-4 py-6 max-w-4xl space-y-8">
+              {currentTest.test.questions.map((question, index) => (
+                <QuestionCard 
+                  key={question.id}
+                  questionNumber={index + 1} 
+                  question={question}
+                  userAnswer={currentTest.userAnswers.find(a => a.questionId === question.id)}
+                  onSelectOption={(optionId) => answerQuestion(question.id, optionId)}
+                />
+              ))}
+              
+              <div className="flex justify-center py-6">
+                <Button 
+                  onClick={confirmEndTest}
+                  size="lg"
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
+                  <Send className="w-4 h-4 mr-2" />
+                  Nộp bài
+                </Button>
+              </div>
+            </div>
+          </ScrollArea>
+        </main>
       </div>
-      
+
+      {/* Confirmation dialog */}
       <Dialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
-        <DialogContent className="glass-panel">
+        <DialogContent>
           <DialogHeader>
-            <DialogTitle className="text-xl font-semibold">Nộp bài?</DialogTitle>
+            <DialogTitle>Nộp bài?</DialogTitle>
             <DialogDescription>
               Bạn có chắc chắn muốn nộp bài? Bạn sẽ không thể thay đổi câu trả lời sau khi nộp.
             </DialogDescription>
@@ -155,11 +185,11 @@ const TestPage = () => {
               <AlertTriangle className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
               <div>
                 <p className="text-sm font-medium text-amber-800">
-                  Bạn đã trả lời {currentTest.userAnswers.filter(a => a.selectedOptionId !== null).length} trên tổng số {totalQuestions} câu hỏi.
+                  Bạn đã trả lời {answeredCount} trên tổng số {totalQuestions} câu hỏi.
                 </p>
-                {currentTest.userAnswers.filter(a => a.isMarked).length > 0 && (
+                {markedCount > 0 && (
                   <p className="text-sm text-amber-700 mt-1">
-                    Bạn có {currentTest.userAnswers.filter(a => a.isMarked).length} câu hỏi đã đánh dấu.
+                    Bạn có {markedCount} câu hỏi đã đánh dấu.
                   </p>
                 )}
               </div>
@@ -168,26 +198,29 @@ const TestPage = () => {
           
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowConfirmDialog(false)}>
+              <X className="w-4 h-4 mr-2" />
               Tiếp tục làm bài
             </Button>
-            <Button onClick={handleEndTest} className="btn-primary">
+            <Button onClick={handleEndTest} className="bg-blue-600">
+              <Send className="w-4 h-4 mr-2" />
               Nộp bài
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
       
-      <Dialog open={isTimeUp} onOpenChange={() => {}}>
-        <DialogContent className="glass-panel">
+      {/* Time's up dialog */}
+      <Dialog open={isTimeUp}>
+        <DialogContent>
           <DialogHeader>
-            <DialogTitle className="text-xl font-semibold">Hết giờ!</DialogTitle>
+            <DialogTitle>Hết giờ!</DialogTitle>
             <DialogDescription>
               Thời gian làm bài của bạn đã kết thúc. Bài làm của bạn đã được nộp tự động.
             </DialogDescription>
           </DialogHeader>
           
           <DialogFooter>
-            <Button onClick={handleEndTest} className="btn-primary">
+            <Button onClick={handleEndTest} className="bg-blue-600">
               Xem kết quả
             </Button>
           </DialogFooter>

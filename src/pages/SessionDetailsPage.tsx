@@ -4,375 +4,375 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Badge } from "@/components/ui/badge";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
-import { sessionService, SessionResponse } from '@/services/sessionService';
-import { testService, Test } from '@/services/testService';
-import { format, parseISO } from 'date-fns';
 import { toast } from "sonner";
-import { ArrowLeft, Trash2, Edit, Clock, Users, BarChart4 } from "lucide-react";
+import { ArrowLeft, Edit, Trash2, Calendar, Clock, Users, Book, PieChart } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { sessionService, SessionResponse, SessionUpdateRequest } from '@/services/sessionService';
+import { testService } from '@/services/testService';
+import { userService } from '@/services/userService';
+import { format } from 'date-fns';
 
 const SessionDetailsPage = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const [loading, setLoading] = useState(true);
+  
   const [session, setSession] = useState<SessionResponse | null>(null);
-  const [test, setTest] = useState<Test | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [activeTab, setActiveTab] = useState<string>("details");
-  const [showEditDialog, setShowEditDialog] = useState<boolean>(false);
-  const [showChangeTestDialog, setShowChangeTestDialog] = useState<boolean>(false);
-  const [editFormData, setEditFormData] = useState({
+  const [test, setTest] = useState<any | null>(null);
+  const [candidates, setCandidates] = useState<any[]>([]);
+  const [results, setResults] = useState<any[]>([]);
+  
+  const [editing, setEditing] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showChangeTestDialog, setShowChangeTestDialog] = useState(false);
+  const [showAddCandidatesDialog, setShowAddCandidatesDialog] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  
+  const [sessionForm, setSessionForm] = useState<SessionUpdateRequest>({
     startTime: '',
     timeLimit: ''
   });
-  const [availableTests, setAvailableTests] = useState<Test[]>([]);
-  const [selectedTestId, setSelectedTestId] = useState<number | null>(null);
-  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState<boolean>(false);
+  
+  const [availableTests, setAvailableTests] = useState<any[]>([]);
+  const [selectedTestId, setSelectedTestId] = useState<number>(0);
   
   const token = localStorage.getItem('token') || '';
-
+  
   useEffect(() => {
-    const fetchSessionDetails = async () => {
-      if (!id) return;
-      
-      setLoading(true);
+    const fetchData = async () => {
       try {
         const fetchedSession = await sessionService.getSession(token, Number(id));
         setSession(fetchedSession);
         
-        if (fetchedSession) {
-          // Format startTime for the form
-          const startDate = parseISO(fetchedSession.startTime);
-          setEditFormData({
-            startTime: format(startDate, "yyyy-MM-dd'T'HH:mm"),
-            timeLimit: fetchedSession.timeLimit
-          });
-          
-          // Get test details
-          const fetchedTest = await sessionService.getSessionTest(token, fetchedSession.sessionId);
-          setTest(fetchedTest);
-        }
+        setSessionForm({
+          startTime: fetchedSession.startTime,
+          timeLimit: fetchedSession.timeLimit
+        });
+        
+        const fetchedTest = await sessionService.getTest(token, Number(id));
+        setTest(fetchedTest);
+        
+        const fetchedCandidates = await sessionService.getCandidates(token, Number(id));
+        setCandidates(fetchedCandidates);
+        
+        const fetchedResults = await sessionService.getCandidateResults(token, Number(id));
+        setResults(fetchedResults);
+        
+        const tests = await testService.getValidTests(token);
+        setAvailableTests(tests);
       } catch (error) {
-        console.error('Error fetching session details:', error);
+        console.error('Error fetching session data:', error);
         toast.error('Không thể tải thông tin phiên thi');
       } finally {
         setLoading(false);
       }
     };
-
-    fetchSessionDetails();
+    
+    fetchData();
   }, [id, token]);
-
-  const fetchAvailableTests = async () => {
-    try {
-      const tests = await testService.getValidTests(token);
-      setAvailableTests(tests);
-    } catch (error) {
-      console.error('Error fetching available tests:', error);
-      toast.error('Không thể tải danh sách bài kiểm tra');
-    }
-  };
-
-  const handleEditSession = async () => {
+  
+  const handleUpdate = async () => {
     if (!session) return;
     
+    setIsSaving(true);
     try {
       const updatedSession = await sessionService.updateSession(
-        token, 
-        session.sessionId, 
-        {
-          startTime: editFormData.startTime,
-          timeLimit: editFormData.timeLimit
-        }
+        token,
+        session.sessionId,
+        sessionForm
       );
       
-      if (updatedSession) {
-        setSession(updatedSession);
-        setShowEditDialog(false);
-      }
+      setSession(updatedSession);
+      setEditing(false);
+      toast.success('Cập nhật phiên thi thành công');
     } catch (error) {
       console.error('Error updating session:', error);
       toast.error('Không thể cập nhật phiên thi');
+    } finally {
+      setIsSaving(false);
     }
   };
-
-  const handleChangeTest = async () => {
-    if (!session || !selectedTestId) return;
-    
-    try {
-      const updatedSession = await sessionService.changeSessionTest(
-        token, 
-        session.sessionId, 
-        selectedTestId
-      );
-      
-      if (updatedSession) {
-        // Refresh test details
-        const fetchedTest = await sessionService.getSessionTest(token, session.sessionId);
-        setTest(fetchedTest);
-        setShowChangeTestDialog(false);
-        setSelectedTestId(null);
-      }
-    } catch (error) {
-      console.error('Error changing test:', error);
-      toast.error('Không thể thay đổi bài kiểm tra');
-    }
-  };
-
-  const handleDeleteSession = async () => {
+  
+  const handleDelete = async () => {
     if (!session) return;
     
+    setIsDeleting(true);
     try {
-      const success = await sessionService.deleteSession(token, session.sessionId);
-      if (success) {
-        toast.success('Xóa phiên thi thành công');
-        navigate('/session-list');
-      }
+      await sessionService.deleteSession(token, session.sessionId);
+      toast.success('Xóa phiên thi thành công');
+      navigate('/session-list');
     } catch (error) {
       console.error('Error deleting session:', error);
       toast.error('Không thể xóa phiên thi');
+    } finally {
+      setIsDeleting(false);
     }
   };
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setEditFormData(prev => ({ ...prev, [name]: value }));
+  
+  const handleChangeTest = async () => {
+    if (!session || !selectedTestId) return;
+    
+    setIsSaving(true);
+    try {
+      await sessionService.changeTest(token, session.sessionId, selectedTestId);
+      
+      const updatedSession = await sessionService.getSession(token, session.sessionId);
+      setSession(updatedSession);
+      
+      const updatedTest = await sessionService.getTest(token, session.sessionId);
+      setTest(updatedTest);
+      
+      setShowChangeTestDialog(false);
+      setSelectedTestId(0);
+      
+      toast.success('Thay đổi bài kiểm tra thành công');
+    } catch (error) {
+      console.error('Error changing test:', error);
+      toast.error('Không thể thay đổi bài kiểm tra');
+    } finally {
+      setIsSaving(false);
+    }
   };
-
+  
+  const formatDateTime = (dateTimeStr: string) => {
+    try {
+      return format(new Date(dateTimeStr), 'dd/MM/yyyy HH:mm');
+    } catch {
+      return 'Không hợp lệ';
+    }
+  };
+  
+  const formatTimeLimit = (timeLimit: string) => {
+    // Convert PT2H30M to 2h 30m
+    const hours = timeLimit.match(/(\d+)H/);
+    const minutes = timeLimit.match(/(\d+)M/);
+    
+    let result = '';
+    if (hours) result += `${hours[1]} giờ `;
+    if (minutes) result += `${minutes[1]} phút`;
+    
+    return result.trim() || 'Không xác định';
+  };
+  
   if (loading) {
     return (
       <div className="container mx-auto py-10 text-center">
-        <p>Đang tải thông tin phiên thi...</p>
+        <p>Đang tải...</p>
       </div>
     );
   }
-
+  
   if (!session) {
     return (
       <div className="container mx-auto py-10 text-center">
-        <p>Không tìm thấy thông tin phiên thi</p>
-        <Button onClick={() => navigate('/session-list')} className="mt-4">Quay lại danh sách</Button>
+        <p>Không tìm thấy phiên thi</p>
+        <Button onClick={() => navigate('/session-list')} className="mt-4">
+          Quay lại danh sách
+        </Button>
       </div>
     );
   }
-
-  const formattedStartTime = format(new Date(session.startTime), 'dd/MM/yyyy HH:mm');
   
   return (
     <div className="container mx-auto py-6">
       <div className="flex justify-between items-center mb-6">
-        <div className="flex items-center">
-          <Button variant="ghost" onClick={() => navigate('/session-list')} className="mr-4">
+        <div className="flex items-center space-x-4">
+          <Button variant="ghost" onClick={() => navigate(-1)}>
             <ArrowLeft className="h-4 w-4 mr-2" />
             Quay lại
           </Button>
-          <div>
-            <h1 className="text-3xl font-bold">
-              Phiên thi {session.sessionId}
-            </h1>
-            <div className="flex items-center mt-1 space-x-2">
-              <Badge>{formattedStartTime}</Badge>
-              <Badge variant="outline">
-                <Clock className="h-4 w-4 mr-1" />
-                {session.timeLimit}
-              </Badge>
-              {session.isDeleted && (
-                <Badge variant="destructive">Đã xóa</Badge>
-              )}
-            </div>
-          </div>
+          <h1 className="text-2xl font-bold">Chi tiết phiên thi #{session.sessionId}</h1>
         </div>
         <div className="flex space-x-2">
-          <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
-            <DialogTrigger asChild>
-              <Button variant="outline">
-                <Edit className="mr-2 h-4 w-4" />
-                Chỉnh sửa
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Chỉnh sửa phiên thi</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4 mt-4">
-                <div>
-                  <Label htmlFor="startTime">Thời gian bắt đầu</Label>
-                  <Input
-                    id="startTime"
-                    name="startTime"
-                    type="datetime-local"
-                    value={editFormData.startTime}
-                    onChange={handleInputChange}
-                    className="mt-1"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="timeLimit">Thời gian làm bài (định dạng ISO 8601, ví dụ: PT2H30M)</Label>
-                  <Input
-                    id="timeLimit"
-                    name="timeLimit"
-                    value={editFormData.timeLimit}
-                    onChange={handleInputChange}
-                    placeholder="PT2H30M"
-                    className="mt-1"
-                  />
-                  <p className="text-sm text-muted-foreground mt-1">
-                    PT2H30M nghĩa là 2 giờ 30 phút
-                  </p>
-                </div>
-              </div>
-              <DialogFooter className="mt-4">
-                <Button variant="outline" onClick={() => setShowEditDialog(false)}>
-                  Hủy
-                </Button>
-                <Button onClick={handleEditSession}>
-                  Lưu
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-          
-          <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
-            <AlertDialogTrigger asChild>
-              <Button variant="destructive">
-                <Trash2 className="mr-2 h-4 w-4" />
-                Xóa
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Bạn có chắc chắn muốn xóa?</AlertDialogTitle>
-              </AlertDialogHeader>
-              <p>Hành động này không thể hoàn tác. Phiên thi sẽ bị xóa vĩnh viễn.</p>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Hủy</AlertDialogCancel>
-                <AlertDialogAction onClick={handleDeleteSession}>Xóa</AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
+          <Button 
+            variant="outline" 
+            onClick={() => setEditing(true)}
+          >
+            <Edit className="h-4 w-4 mr-2" />
+            Chỉnh sửa
+          </Button>
+          <Button 
+            variant="destructive" 
+            onClick={() => setShowDeleteDialog(true)}
+          >
+            <Trash2 className="h-4 w-4 mr-2" />
+            Xóa
+          </Button>
         </div>
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
+      <Tabs defaultValue="details">
         <TabsList className="mb-4">
-          <TabsTrigger value="details">Thông tin</TabsTrigger>
+          <TabsTrigger value="details">Thông tin chung</TabsTrigger>
           <TabsTrigger value="test">Bài kiểm tra</TabsTrigger>
           <TabsTrigger value="candidates">Thí sinh</TabsTrigger>
           <TabsTrigger value="results">Kết quả</TabsTrigger>
         </TabsList>
         
         <TabsContent value="details">
-          <Card>
-            <CardHeader>
-              <CardTitle>Thông tin phiên thi</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <h4 className="text-sm font-medium">ID Phiên thi</h4>
-                  <p>{session.sessionId}</p>
+          {editing ? (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex justify-between items-center">
+                  Chỉnh sửa thông tin
+                  <Button variant="ghost" size="sm" onClick={() => setEditing(false)}>Hủy</Button>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="startTime" className="text-right">
+                      Thời gian bắt đầu
+                    </Label>
+                    <div className="col-span-3">
+                      <Input
+                        id="startTime"
+                        type="datetime-local"
+                        value={sessionForm.startTime}
+                        onChange={(e) => setSessionForm(prev => ({
+                          ...prev,
+                          startTime: e.target.value
+                        }))}
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="timeLimit" className="text-right">
+                      Thời gian làm bài
+                    </Label>
+                    <div className="col-span-3">
+                      <Select 
+                        value={sessionForm.timeLimit}
+                        onValueChange={(value) => setSessionForm(prev => ({
+                          ...prev,
+                          timeLimit: value
+                        }))}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Chọn thời gian" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="PT0H30M">30 phút</SelectItem>
+                          <SelectItem value="PT1H00M">1 giờ</SelectItem>
+                          <SelectItem value="PT1H30M">1 giờ 30 phút</SelectItem>
+                          <SelectItem value="PT2H00M">2 giờ</SelectItem>
+                          <SelectItem value="PT2H30M">2 giờ 30 phút</SelectItem>
+                          <SelectItem value="PT3H00M">3 giờ</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  
+                  <div className="flex justify-end mt-6">
+                    <Button onClick={handleUpdate} disabled={isSaving}>
+                      {isSaving ? 'Đang lưu...' : 'Lưu thay đổi'}
+                    </Button>
+                  </div>
                 </div>
-                <div>
-                  <h4 className="text-sm font-medium">Thời gian bắt đầu</h4>
-                  <p>{formattedStartTime}</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card>
+              <CardHeader>
+                <CardTitle>Thông tin phiên thi</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-6">
+                    <div>
+                      <div className="flex items-center">
+                        <Calendar className="h-5 w-5 text-gray-400 mr-2" />
+                        <span className="text-sm font-medium text-gray-500">Thời gian bắt đầu</span>
+                      </div>
+                      <p className="mt-1 text-lg">{formatDateTime(session.startTime)}</p>
+                    </div>
+                    
+                    <div>
+                      <div className="flex items-center">
+                        <Clock className="h-5 w-5 text-gray-400 mr-2" />
+                        <span className="text-sm font-medium text-gray-500">Thời gian làm bài</span>
+                      </div>
+                      <p className="mt-1 text-lg">{formatTimeLimit(session.timeLimit)}</p>
+                    </div>
+                    
+                    <div>
+                      <div className="flex items-center">
+                        <Users className="h-5 w-5 text-gray-400 mr-2" />
+                        <span className="text-sm font-medium text-gray-500">Số thí sinh</span>
+                      </div>
+                      <p className="mt-1 text-lg">{session.candidateCount}</p>
+                    </div>
+                    
+                    <div>
+                      <div className="flex items-center">
+                        <Clock className="h-5 w-5 text-gray-400 mr-2" />
+                        <span className="text-sm font-medium text-gray-500">Lần chỉnh sửa cuối</span>
+                      </div>
+                      <p className="mt-1 text-lg">{formatDateTime(session.lastEditTime)}</p>
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <h4 className="text-sm font-medium">Thời gian làm bài</h4>
-                  <p>{session.timeLimit}</p>
-                </div>
-                <div>
-                  <h4 className="text-sm font-medium">Số thí sinh</h4>
-                  <p>{session.candidateCount}</p>
-                </div>
-                <div>
-                  <h4 className="text-sm font-medium">Trạng thái</h4>
-                  <p>{session.isDeleted ? 'Đã xóa' : 'Đang hoạt động'}</p>
-                </div>
-                <div>
-                  <h4 className="text-sm font-medium">Thời gian chỉnh sửa cuối</h4>
-                  <p>{session.lastEditTime ? format(new Date(session.lastEditTime), 'dd/MM/yyyy HH:mm') : 'Chưa có'}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
         
         <TabsContent value="test">
           <Card>
-            <CardHeader>
-              <div className="flex justify-between items-center">
-                <CardTitle>Bài kiểm tra</CardTitle>
-                <Dialog open={showChangeTestDialog} onOpenChange={(open) => {
-                  setShowChangeTestDialog(open);
-                  if (open) fetchAvailableTests();
-                }}>
-                  <DialogTrigger asChild>
-                    <Button variant="outline">Đổi bài kiểm tra</Button>
-                  </DialogTrigger>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>Chọn bài kiểm tra</DialogTitle>
-                    </DialogHeader>
-                    <div className="max-h-[400px] overflow-y-auto my-4">
-                      {availableTests.length > 0 ? (
-                        availableTests.map(test => (
-                          <div
-                            key={test.testId}
-                            className={`border p-4 rounded-md mb-2 cursor-pointer ${
-                              selectedTestId === test.testId ? 'border-primary bg-primary/10' : ''
-                            }`}
-                            onClick={() => setSelectedTestId(test.testId)}
-                          >
-                            <div className="font-medium">{test.testName}</div>
-                            <div className="text-sm text-muted-foreground">
-                              {test.subject} • {test.questionCount} câu hỏi
-                            </div>
-                          </div>
-                        ))
-                      ) : (
-                        <p className="text-center py-4">Đang tải danh sách bài kiểm tra...</p>
-                      )}
-                      {availableTests.length === 0 && !loading && (
-                        <p className="text-center py-4">Không có bài kiểm tra nào khả dụng</p>
-                      )}
-                    </div>
-                    <DialogFooter>
-                      <Button variant="outline" onClick={() => setShowChangeTestDialog(false)}>
-                        Hủy
-                      </Button>
-                      <Button onClick={handleChangeTest} disabled={!selectedTestId}>
-                        Xác nhận
-                      </Button>
-                    </DialogFooter>
-                  </DialogContent>
-                </Dialog>
-              </div>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle>Bài kiểm tra</CardTitle>
+              <Button 
+                variant="outline" 
+                onClick={() => setShowChangeTestDialog(true)}
+              >
+                Thay đổi bài kiểm tra
+              </Button>
             </CardHeader>
             <CardContent>
-              {test ? (
-                <div className="space-y-4">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <h3 className="text-xl font-medium">{test.testName}</h3>
-                      <p className="text-muted-foreground">{test.subject}</p>
-                    </div>
-                    <Badge>{test.questionCount} câu hỏi</Badge>
-                  </div>
-                  
-                  <div className="pt-4">
-                    <Button asChild>
-                      <Link to={`/test-details/${test.testId}`}>
-                        Xem chi tiết bài kiểm tra
-                      </Link>
-                    </Button>
-                  </div>
+              {!test ? (
+                <div className="text-center py-8">
+                  <p className="text-gray-500">Chưa có bài kiểm tra được chọn</p>
                 </div>
               ) : (
-                <div className="text-center py-8">
-                  <p>Chưa có bài kiểm tra nào được chọn</p>
+                <div className="space-y-6">
+                  <div className="flex items-center justify-between pb-4 border-b">
+                    <div>
+                      <h3 className="text-lg font-semibold">{test.testName}</h3>
+                      <p className="text-gray-500">{test.subject}</p>
+                    </div>
+                    <Button 
+                      variant="outline"
+                      onClick={() => navigate(`/test-details/${test.testId}`)}
+                    >
+                      <Book className="h-4 w-4 mr-2" />
+                      Xem chi tiết
+                    </Button>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="bg-blue-50 p-4 rounded-lg">
+                      <p className="text-sm text-blue-700 font-medium">ID</p>
+                      <p className="text-lg">{test.testId}</p>
+                    </div>
+                    
+                    <div className="bg-blue-50 p-4 rounded-lg">
+                      <p className="text-sm text-blue-700 font-medium">Số câu hỏi</p>
+                      <p className="text-lg">{test.questionCount}</p>
+                    </div>
+                    
+                    <div className="bg-blue-50 p-4 rounded-lg">
+                      <p className="text-sm text-blue-700 font-medium">Trạng thái</p>
+                      <div className="flex items-center mt-1">
+                        <span className={`w-2 h-2 rounded-full mr-2 ${test.isDeleted ? 'bg-red-500' : 'bg-green-500'}`}></span>
+                        <span className="text-lg">{test.isDeleted ? 'Đã xóa' : 'Hoạt động'}</span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               )}
             </CardContent>
@@ -381,21 +381,55 @@ const SessionDetailsPage = () => {
         
         <TabsContent value="candidates">
           <Card>
-            <CardHeader>
-              <div className="flex justify-between items-center">
-                <CardTitle>Danh sách thí sinh</CardTitle>
-                <Button asChild>
-                  <Link to={`/candidate-list/${session.sessionId}`}>
-                    <Users className="mr-2 h-4 w-4" />
-                    Quản lý thí sinh
-                  </Link>
-                </Button>
-              </div>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle>Danh sách thí sinh</CardTitle>
+              <Button 
+                variant="outline" 
+                onClick={() => setShowAddCandidatesDialog(true)}
+              >
+                Thêm thí sinh
+              </Button>
             </CardHeader>
             <CardContent>
-              <p className="text-center py-4">
-                Nhấn vào nút "Quản lý thí sinh" để xem và thêm thí sinh cho phiên thi
-              </p>
+              {candidates.length === 0 ? (
+                <div className="text-center py-8">
+                  <p className="text-gray-500">Chưa có thí sinh nào</p>
+                </div>
+              ) : (
+                <div className="border rounded-lg overflow-hidden">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tên đăng nhập</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Họ tên</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Loại</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Giới tính</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {candidates.map((candidate) => (
+                        <tr key={candidate.userId}>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm font-medium text-gray-900">{candidate.username}</div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm text-gray-900">{candidate.fullName}</div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm text-gray-900">{candidate.type}</div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm text-gray-900">
+                              {candidate.gender === 'MALE' ? 'Nam' : 
+                               candidate.gender === 'FEMALE' ? 'Nữ' : 'Khác'}
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -403,24 +437,186 @@ const SessionDetailsPage = () => {
         <TabsContent value="results">
           <Card>
             <CardHeader>
-              <div className="flex justify-between items-center">
-                <CardTitle>Kết quả</CardTitle>
-                <Button asChild>
-                  <Link to={`/detailed-results/${session.sessionId}`}>
-                    <BarChart4 className="mr-2 h-4 w-4" />
-                    Xem chi tiết kết quả
-                  </Link>
-                </Button>
-              </div>
+              <CardTitle className="flex items-center">
+                <PieChart className="h-5 w-5 mr-2 text-blue-500" />
+                Kết quả kiểm tra
+              </CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-center py-4">
-                Nhấn vào nút "Xem chi tiết kết quả" để xem kết quả của tất cả thí sinh
-              </p>
+              {results.length === 0 ? (
+                <div className="text-center py-8">
+                  <p className="text-gray-500">Chưa có kết quả nào</p>
+                </div>
+              ) : (
+                <div className="border rounded-lg overflow-hidden">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Mã kết quả</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Điểm số</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Trạng thái</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Thời gian nộp</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Thời gian làm</th>
+                        <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Hành động</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {results.map((result) => (
+                        <tr key={result.testResultId}>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm font-medium text-gray-900">{result.testResultId}</div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm font-medium">
+                              <span className={
+                                result.score >= 8 ? 'text-green-600' : 
+                                result.score >= 5 ? 'text-blue-600' : 
+                                'text-red-600'
+                              }>
+                                {result.score}
+                              </span>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                              result.status === 'COMPLETED' ? 'bg-green-100 text-green-800' :
+                              result.status === 'IN_PROGRESS' ? 'bg-blue-100 text-blue-800' :
+                              'bg-gray-100 text-gray-800'
+                            }`}>
+                              {result.status === 'COMPLETED' ? 'Hoàn thành' :
+                               result.status === 'IN_PROGRESS' ? 'Đang làm' :
+                               'Chưa bắt đầu'}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm text-gray-900">
+                              {result.submitAt ? formatDateTime(result.submitAt) : '-'}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm text-gray-900">
+                              {result.timeTaken ? `${Math.floor(result.timeTaken / 60)} phút` : '-'}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-center">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-blue-600 hover:text-blue-800 hover:bg-blue-50"
+                              onClick={() => navigate(`/detailed-results/${result.testResultId}`)}
+                            >
+                              Chi tiết
+                            </Button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Delete confirmation dialog */}
+      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Xóa phiên thi</DialogTitle>
+            <DialogDescription>
+              Bạn có chắc chắn muốn xóa phiên thi này? Hành động này không thể hoàn tác.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowDeleteDialog(false)}>
+              Hủy
+            </Button>
+            <Button 
+              variant="destructive" 
+              onClick={handleDelete}
+              disabled={isDeleting}
+            >
+              {isDeleting ? 'Đang xóa...' : 'Xóa phiên thi'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Change test dialog */}
+      <Dialog open={showChangeTestDialog} onOpenChange={setShowChangeTestDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Thay đổi bài kiểm tra</DialogTitle>
+            <DialogDescription>
+              Chọn bài kiểm tra mới cho phiên thi này.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="py-4">
+            <Select 
+              onValueChange={(value) => setSelectedTestId(Number(value))}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Chọn bài kiểm tra" />
+              </SelectTrigger>
+              <SelectContent>
+                {availableTests.map((test) => (
+                  <SelectItem key={test.testId} value={test.testId.toString()}>
+                    {test.testName} - {test.subject} ({test.questionCount} câu)
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowChangeTestDialog(false)}>
+              Hủy
+            </Button>
+            <Button 
+              onClick={handleChangeTest}
+              disabled={!selectedTestId || isSaving}
+            >
+              {isSaving ? 'Đang lưu...' : 'Lưu thay đổi'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add candidates dialog - simplified, can be expanded later */}
+      <Dialog open={showAddCandidatesDialog} onOpenChange={setShowAddCandidatesDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Thêm thí sinh</DialogTitle>
+            <DialogDescription>
+              Bạn có thể thêm thí sinh theo loại hoặc chọn từng người.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="py-4">
+            <div className="flex flex-col space-y-4">
+              <Button variant="outline" className="justify-start">
+                <Users className="h-4 w-4 mr-2" />
+                Thêm thí sinh theo loại
+              </Button>
+              <Button variant="outline" className="justify-start">
+                <Users className="h-4 w-4 mr-2" />
+                Thêm thí sinh theo người dùng
+              </Button>
+            </div>
+            <p className="text-xs text-gray-500 mt-2">
+              Tính năng này đang được phát triển.
+            </p>
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowAddCandidatesDialog(false)}>
+              Đóng
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

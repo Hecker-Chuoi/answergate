@@ -1,61 +1,72 @@
-
 import { toast } from "sonner";
 import { User } from './userService';
-import { Test, Question } from './testService';
+import { Test, Question, QuestionCreationRequest } from './testService';
 
-const API_URL = 'http://localhost:8080/exam';
+export interface Answer {
+  answerId: number;
+  answerText: string;
+  isCorrect: boolean;
+}
 
-export type SessionResponse = {
-  sessionId: number;
-  startTime: string;
-  timeLimit: string; // Format: PT2H30M (ISO 8601 Duration)
-  testId: number;
-  candidateCount: number;
-  isDeleted: boolean;
-  lastEditTime: string;
-};
+export interface Question {
+  questionId: number;
+  questionText: string;
+  questionType: 'SINGLE_CHOICE' | 'MULTIPLE_CHOICES';
+  explainText?: string;
+  answers: Answer[];
+}
 
-export type SessionCreationRequest = {
-  startTime: string;
-  testId: number;
-  timeLimit: string; // Format: PT2H30M (ISO 8601 Duration)
-};
-
-export type SessionUpdateRequest = {
-  startTime?: string;
-  timeLimit?: string; // Format: PT2H30M (ISO 8601 Duration)
-};
-
-export type CandidateAnswer = {
-  testAnswerId: number;
+export interface CandidateAnswer {
   answerChosen: string;
   correct: boolean;
-};
+  testAnswerId: number;
+}
 
-export type ResultResponse = {
+export interface ResultResponse {
   testResultId: number;
-  candidateId: number;
   sessionId: number;
+  candidateId: number;
   score: number;
   status: 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED';
   submitAt: string;
   timeTaken: number;
   candidateAnswered: CandidateAnswer[];
-};
+}
 
-export type CandidateResult = {
+export interface CandidateResult {
   testResultId: number;
   score: number;
   status: 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED';
   submitAt: string;
   timeTaken: number;
   candidateAnswered: CandidateAnswer[];
-};
+}
 
-export type CandidateAnswerRequest = {
+export interface SessionResponse {
+  sessionId: number;
+  testId: number;
+  startTime: string;
+  timeLimit: string; // Format "PT2H30M"
+  lastEditTime: string;
+  candidateCount: number;
+  isDeleted: boolean;
+}
+
+export interface SessionCreationRequest {
+  testId: number;
+  startTime: string;
+  timeLimit: string; // Format "PT2H30M"
+}
+
+export interface SessionUpdateRequest {
+  startTime?: string;
+  timeLimit?: string; // Format "PT2H30M"
+}
+
+export interface CandidateAnswerRequest {
   questionId: number;
-  answerChosen?: string;
-};
+  answerChosen: string;
+}
 
 export type ApiResponse<T> = {
   statusCode: number;
@@ -372,7 +383,6 @@ export const sessionService = {
     }
   },
 
-  // APIs for students taking tests
   startTest: async (token: string, sessionId: number): Promise<boolean> => {
     try {
       const response = await fetch(`${API_URL}/taking-test/${sessionId}/start`, {
@@ -523,4 +533,52 @@ export const sessionService = {
       return null;
     }
   },
+
+  getUpcomingSessions: async (token: string) => {
+    try {
+      const response = await fetch(`${API_URL}/user/upcomingSessions`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.message || 'Không thể lấy danh sách kỳ thi sắp tới');
+      }
+      
+      return data.result;
+    } catch (error) {
+      console.error('Error fetching upcoming sessions:', error);
+      throw error;
+    }
+  },
+
+  getCandidates: async (token: string, sessionId: number) => {
+    try {
+      const response = await fetch(`${API_URL}/session/${sessionId}/candidates`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.message || 'Không thể lấy danh sách thí sinh');
+      }
+      
+      return data.result;
+    } catch (error) {
+      console.error('Error fetching candidates:', error);
+      throw error;
+    }
+  }
 };
+
+export { sessionService };

@@ -32,6 +32,7 @@ export interface TestAttempt {
   startTime: Date;
   endTime: Date | null;
   remainingTime: number; // in seconds
+  totalQuestions: number;
 }
 
 export interface TestResult {

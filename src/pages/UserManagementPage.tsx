@@ -1,118 +1,118 @@
-
-import React, { useState, useEffect, useRef } from 'react';
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Input } from "@/components/ui/input";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Label } from "@/components/ui/label";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { format } from 'date-fns';
+import React, { useState, useEffect } from 'react';
 import { userService, User, UserCreationRequest } from '@/services/userService';
-import { toast } from "sonner";
-import { UserDetailDialog } from '@/components/UserDetailDialog';
-import { Trash2, Eye, Search, Upload, UserPlus } from "lucide-react";
+import { Button } from '@/components/ui/button';
+import { toast } from 'sonner';
+import { Plus, Edit, Trash2, Search } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import UserDetailDialog from '@/components/UserDetailDialog';
+
+interface UserForm extends UserCreationRequest { }
 
 const UserManagementPage = () => {
   const [users, setUsers] = useState<User[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [searchTerm, setSearchTerm] = useState<string>('');
-  const [selectedUser, setSelectedUser] = useState<User | null>(null);
-  const [showDetailDialog, setShowDetailDialog] = useState<boolean>(false);
-  const [showCreateDialog, setShowCreateDialog] = useState<boolean>(false);
-  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState<boolean>(false);
-  const [userToDelete, setUserToDelete] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  
-  const [newUser, setNewUser] = useState<UserCreationRequest>({
+  const [loading, setLoading] = useState(true);
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
+  const [isCreating, setIsCreating] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [userDetail, setUserDetail] = useState<User | null>(null);
+  const [showUserDetailDialog, setShowUserDetailDialog] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [newUser, setNewUser] = useState<UserForm>({
     fullName: '',
     dob: '',
-    gender: 'MALE', // Default value to avoid type error
-    type: 'Chiến sĩ', // Default value
+    gender: 'MALE',
+    type: 'Chiến sĩ',
     phoneNumber: '',
     mail: '',
-    hometown: '',
+    hometown: ''
   });
-  
+
   const token = localStorage.getItem('token') || '';
 
   useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        const fetchedUsers = await userService.getAllUsers(token);
+        setUsers(fetchedUsers);
+      } catch (error) {
+        console.error('Error fetching users:', error);
+        toast.error('Không thể tải danh sách người dùng');
+      } finally {
+        setLoading(false);
+      }
+    };
+
     fetchUsers();
   }, [token]);
 
-  const fetchUsers = async () => {
-    setLoading(true);
-    try {
-      const fetchedUsers = await userService.getAllUsers(token);
-      setUsers(fetchedUsers);
-    } catch (error) {
-      console.error('Error fetching users:', error);
-      toast.error('Không thể tải danh sách người dùng');
-    } finally {
-      setLoading(false);
+  const handleCreateUser = async () => {
+    if (!newUser.fullName || !newUser.dob || !newUser.gender || !newUser.type) {
+      toast.error('Vui lòng điền đầy đủ thông tin bắt buộc');
+      return;
     }
-  };
-
-  const handleViewUser = async (username: string) => {
+    
+    setIsCreating(true);
     try {
-      const user = await userService.getUserByUsername(token, username);
-      if (user) {
-        setSelectedUser(user);
-        setShowDetailDialog(true);
-      }
+      const userData: UserCreationRequest = {
+        fullName: newUser.fullName,
+        dob: newUser.dob,
+        gender: newUser.gender as "MALE" | "FEMALE" | "OTHER",
+        type: newUser.type as "Chiến sĩ" | "Sĩ quan" | "Chuyên nghiệp",
+        phoneNumber: newUser.phoneNumber,
+        mail: newUser.mail,
+        hometown: newUser.hometown
+      };
+      
+      const createdUser = await userService.createUser(token, userData);
+      setUsers(prev => [...prev, createdUser]);
+      toast.success('Tạo người dùng thành công');
+      setShowCreateDialog(false);
+      resetNewUser();
     } catch (error) {
-      console.error('Error fetching user details:', error);
-      toast.error('Không thể tải thông tin người dùng');
+      console.error('Error creating user:', error);
+      toast.error('Không thể tạo người dùng');
+    } finally {
+      setIsCreating(false);
     }
   };
 
   const handleDeleteUser = async () => {
-    if (!userToDelete) return;
-    
+    if (!selectedUserId) return;
+
+    setIsDeleting(true);
     try {
-      const success = await userService.deleteUser(token, userToDelete);
-      if (success) {
-        setUsers(users.filter(user => user.username !== userToDelete));
-        setUserToDelete(null);
-        setDeleteConfirmOpen(false);
-      }
+      await userService.deleteUser(token, selectedUserId);
+      setUsers(prev => prev.filter(user => user.userId !== selectedUserId));
+      toast.success('Xóa người dùng thành công');
+      setShowDeleteDialog(false);
     } catch (error) {
-      console.error('Error deleting user:', error);
+      console.error(`Error deleting user ${selectedUserId}:`, error);
       toast.error('Không thể xóa người dùng');
-    }
-  };
-
-  const handleDeleteClick = (username: string) => {
-    setUserToDelete(username);
-    setDeleteConfirmOpen(true);
-  };
-
-  const handleUploadClick = () => {
-    fileInputRef.current?.click();
-  };
-
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    
-    try {
-      const uploadedUsers = await userService.uploadUsersExcel(token, file);
-      if (uploadedUsers && uploadedUsers.length > 0) {
-        fetchUsers();  // Refresh the users list
-      }
-    } catch (error) {
-      console.error('Error uploading Excel file:', error);
-      toast.error('Không thể tải lên tệp Excel');
     } finally {
-      // Reset the input
-      if (fileInputRef.current) fileInputRef.current.value = '';
+      setIsDeleting(false);
     }
   };
 
-  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchTerm(e.target.value);
+  const handleShowUserDetail = (user: User) => {
+    setUserDetail(user);
+    setShowUserDetailDialog(true);
+  };
+
+  const handleCloseUserDetail = () => {
+    setShowUserDetailDialog(false);
+    setUserDetail(null);
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -120,269 +120,265 @@ const UserManagementPage = () => {
     setNewUser(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleGenderChange = (value: string) => {
-    // Ensure value is one of the allowed gender types
-    const gender = (value === 'MALE' || value === 'FEMALE' || value === 'OTHER') 
-      ? value 
-      : 'MALE'; // Default to MALE if invalid value
-    
-    setNewUser(prev => ({ ...prev, gender }));
+  const resetNewUser = () => {
+    setNewUser({
+      fullName: '',
+      dob: '',
+      gender: 'MALE',
+      type: 'Chiến sĩ',
+      phoneNumber: '',
+      mail: '',
+      hometown: ''
+    });
   };
 
-  const handleTypeChange = (value: string) => {
-    setNewUser(prev => ({ ...prev, type: value }));
-  };
-
-  const handleCreateUser = async () => {
-    try {
-      const createdUser = await userService.createUser(token, newUser);
-      if (createdUser) {
-        setUsers([...users, createdUser]);
-        setShowCreateDialog(false);
-        // Reset form
-        setNewUser({
-          fullName: '',
-          dob: '',
-          gender: 'MALE',
-          type: 'Chiến sĩ',
-          phoneNumber: '',
-          mail: '',
-          hometown: '',
-        });
-      }
-    } catch (error) {
-      console.error('Error creating user:', error);
-      toast.error('Không thể tạo người dùng');
-    }
-  };
-
-  // Filter users based on search term
-  const filteredUsers = users.filter(user => 
-    user.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (user.fullName && user.fullName.toLowerCase().includes(searchTerm.toLowerCase()))
+  const filteredUsers = users.filter(user =>
+    user.fullName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    user.username?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   return (
     <div className="container mx-auto py-6">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">Quản lý người dùng</h1>
-        <div className="flex space-x-2">
-          <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
-            <DialogTrigger asChild>
-              <Button variant="outline">
-                <UserPlus className="mr-2 h-4 w-4" />
-                Thêm người dùng
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Tạo người dùng mới</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4 mt-4">
-                <div>
-                  <Label htmlFor="fullName">Họ và tên</Label>
-                  <Input
-                    id="fullName"
-                    name="fullName"
-                    value={newUser.fullName}
-                    onChange={handleInputChange}
-                    className="mt-1"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="dob">Ngày sinh (YYYY-MM-DD)</Label>
-                  <Input
-                    id="dob"
-                    name="dob"
-                    type="date"
-                    value={newUser.dob}
-                    onChange={handleInputChange}
-                    className="mt-1"
-                  />
-                </div>
-                <div>
-                  <Label>Giới tính</Label>
-                  <RadioGroup
-                    value={newUser.gender}
-                    onValueChange={handleGenderChange}
-                    className="flex space-x-4 mt-1"
-                  >
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="MALE" id="gender-male" />
-                      <Label htmlFor="gender-male">Nam</Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="FEMALE" id="gender-female" />
-                      <Label htmlFor="gender-female">Nữ</Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="OTHER" id="gender-other" />
-                      <Label htmlFor="gender-other">Khác</Label>
-                    </div>
-                  </RadioGroup>
-                </div>
-                <div>
-                  <Label htmlFor="type">Loại</Label>
-                  <Select value={newUser.type} onValueChange={handleTypeChange}>
-                    <SelectTrigger className="mt-1">
-                      <SelectValue placeholder="Chọn loại" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Chiến sĩ">Chiến sĩ</SelectItem>
-                      <SelectItem value="Sĩ quan">Sĩ quan</SelectItem>
-                      <SelectItem value="Chuyên nghiệp">Chuyên nghiệp</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label htmlFor="phoneNumber">Số điện thoại</Label>
-                  <Input
-                    id="phoneNumber"
-                    name="phoneNumber"
-                    value={newUser.phoneNumber || ''}
-                    onChange={handleInputChange}
-                    className="mt-1"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="mail">Email</Label>
-                  <Input
-                    id="mail"
-                    name="mail"
-                    type="email"
-                    value={newUser.mail || ''}
-                    onChange={handleInputChange}
-                    className="mt-1"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="hometown">Quê quán</Label>
-                  <Input
-                    id="hometown"
-                    name="hometown"
-                    value={newUser.hometown || ''}
-                    onChange={handleInputChange}
-                    className="mt-1"
-                  />
-                </div>
-              </div>
-              <div className="flex justify-end space-x-2 mt-4">
-                <Button variant="outline" onClick={() => setShowCreateDialog(false)}>
-                  Hủy
-                </Button>
-                <Button onClick={handleCreateUser}>Tạo</Button>
-              </div>
-            </DialogContent>
-          </Dialog>
-          
-          <Button variant="outline" onClick={handleUploadClick}>
-            <Upload className="mr-2 h-4 w-4" />
-            Tải lên Excel
-          </Button>
-          <input
-            type="file"
-            ref={fileInputRef}
-            onChange={handleFileChange}
-            accept=".xls,.xlsx"
-            className="hidden"
+        <h1 className="text-2xl font-bold">Quản lý người dùng</h1>
+        <Button onClick={() => setShowCreateDialog(true)}>
+          <Plus className="h-4 w-4 mr-2" />
+          Tạo người dùng mới
+        </Button>
+      </div>
+
+      <div className="mb-4">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+          <Input
+            type="text"
+            placeholder="Tìm kiếm theo tên hoặc tên đăng nhập..."
+            className="pl-10"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
       </div>
-      
-      <Card>
-        <CardHeader>
-          <div className="flex justify-between items-center">
-            <CardTitle>Danh sách người dùng</CardTitle>
-            <div className="w-1/3 flex items-center bg-background border rounded-md focus-within:ring-1">
-              <Search className="ml-2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Tìm kiếm theo tên hoặc tên đăng nhập"
-                value={searchTerm}
-                onChange={handleSearchChange}
-                className="border-0 focus-visible:ring-0"
-              />
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <div className="text-center py-4">Đang tải...</div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Tên đăng nhập</TableHead>
-                  <TableHead>Họ tên</TableHead>
-                  <TableHead>Ngày sinh</TableHead>
-                  <TableHead>Giới tính</TableHead>
-                  <TableHead>Loại</TableHead>
-                  <TableHead>Vai trò</TableHead>
-                  <TableHead className="text-right">Thao tác</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredUsers.length > 0 ? (
-                  filteredUsers.map((user) => (
-                    <TableRow key={user.username}>
-                      <TableCell>{user.username}</TableCell>
-                      <TableCell>{user.fullName}</TableCell>
-                      <TableCell>{user.dob ? format(new Date(user.dob), 'dd/MM/yyyy') : 'N/A'}</TableCell>
-                      <TableCell>
-                        {user.gender === 'MALE' ? 'Nam' : 
-                         user.gender === 'FEMALE' ? 'Nữ' : 'Khác'}
-                      </TableCell>
-                      <TableCell>{user.type}</TableCell>
-                      <TableCell>{user.role === 'ADMIN' ? 'Quản trị viên' : 'Người dùng'}</TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end space-x-2">
-                          <Button variant="ghost" size="icon" onClick={() => handleViewUser(user.username)}>
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                          <Button variant="ghost" size="icon" onClick={() => handleDeleteClick(user.username)}>
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan={7} className="text-center py-4">
-                      {searchTerm ? 'Không tìm thấy người dùng nào' : 'Chưa có người dùng nào'}
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
 
-      {/* User Detail Dialog */}
-      {selectedUser && (
-        <UserDetailDialog
-          user={selectedUser}
-          open={showDetailDialog}
-          onOpenChange={setShowDetailDialog}
-          onUserUpdated={(updatedUser) => {
-            setUsers(users.map(u => u.username === updatedUser.username ? updatedUser : u));
-          }}
-        />
+      {loading ? (
+        <p className="text-center py-10">Đang tải...</p>
+      ) : filteredUsers.length === 0 ? (
+        <div className="text-center py-12 border rounded-lg bg-gray-50">
+          <h3 className="text-lg font-medium mb-2">Không có người dùng</h3>
+          <p className="text-gray-500 mb-6">Không tìm thấy người dùng phù hợp với tìm kiếm của bạn.</p>
+          <Button onClick={() => setShowCreateDialog(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Tạo người dùng mới
+          </Button>
+        </div>
+      ) : (
+        <div className="border rounded-lg overflow-hidden">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tên đăng nhập</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Họ tên</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Loại</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Thao tác</th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {filteredUsers.map(user => (
+                <tr key={user.userId}>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{user.username}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{user.fullName}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{user.type}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="mr-2"
+                      onClick={() => handleShowUserDetail(user)}
+                    >
+                      <Edit className="h-4 w-4 mr-1" />
+                      Chi tiết
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-red-600 hover:text-red-800 hover:bg-red-50"
+                      onClick={() => {
+                        setSelectedUserId(user.userId);
+                        setShowDeleteDialog(true);
+                      }}
+                    >
+                      <Trash2 className="h-4 w-4 mr-1" />
+                      Xóa
+                    </Button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
 
-      {/* Delete Confirmation Dialog */}
-      <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Xác nhận xóa</AlertDialogTitle>
-          </AlertDialogHeader>
-          <p>Bạn có chắc chắn muốn xóa người dùng này? Hành động này không thể hoàn tác.</p>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setUserToDelete(null)}>Hủy</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteUser}>Xóa</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Tạo người dùng mới</DialogTitle>
+            <DialogDescription>
+              Điền các thông tin cần thiết để tạo người dùng mới.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="fullName" className="text-right">
+                Họ và tên
+              </Label>
+              <div className="col-span-3">
+                <Input
+                  id="fullName"
+                  name="fullName"
+                  onChange={handleInputChange}
+                  placeholder="Nhập họ và tên"
+                  className="mt-1"
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="dob" className="text-right">
+                Ngày sinh
+              </Label>
+              <div className="col-span-3">
+                <Input
+                  id="dob"
+                  type="date"
+                  name="dob"
+                  onChange={handleInputChange}
+                  className="mt-1"
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="gender" className="text-right">
+                Giới tính
+              </Label>
+              <div className="col-span-3">
+                <Select onValueChange={(value) => setNewUser(prev => ({ ...prev, gender: value }))}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Chọn giới tính" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="MALE">Nam</SelectItem>
+                    <SelectItem value="FEMALE">Nữ</SelectItem>
+                    <SelectItem value="OTHER">Khác</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="type" className="text-right">
+                Loại
+              </Label>
+              <div className="col-span-3">
+                <Select onValueChange={(value) => setNewUser(prev => ({ ...prev, type: value }))}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Chọn loại" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Chiến sĩ">Chiến sĩ</SelectItem>
+                    <SelectItem value="Sĩ quan">Sĩ quan</SelectItem>
+                    <SelectItem value="Chuyên nghiệp">Chuyên nghiệp</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="phoneNumber" className="text-right">
+                Số điện thoại
+              </Label>
+              <div className="col-span-3">
+                <Input
+                  id="phoneNumber"
+                  type="tel"
+                  name="phoneNumber"
+                  onChange={handleInputChange}
+                  placeholder="Nhập số điện thoại"
+                  className="mt-1"
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="mail" className="text-right">
+                Email
+              </Label>
+              <div className="col-span-3">
+                <Input
+                  id="mail"
+                  type="email"
+                  name="mail"
+                  onChange={handleInputChange}
+                  placeholder="Nhập địa chỉ email"
+                  className="mt-1"
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="hometown" className="text-right">
+                Quê quán
+              </Label>
+              <div className="col-span-3">
+                <Input
+                  id="hometown"
+                  name="hometown"
+                  onChange={handleInputChange}
+                  placeholder="Nhập quê quán"
+                  className="mt-1"
+                />
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => {
+              setShowCreateDialog(false);
+              resetNewUser();
+            }}>
+              Hủy
+            </Button>
+            <Button onClick={handleCreateUser} disabled={isCreating}>
+              {isCreating ? 'Đang tạo...' : 'Tạo người dùng'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Xác nhận xóa</DialogTitle>
+            <DialogDescription>
+              Bạn có chắc chắn muốn xóa người dùng này? Hành động này không thể hoàn tác.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowDeleteDialog(false)}>
+              Hủy
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteUser}
+              disabled={isDeleting}
+            >
+              {isDeleting ? 'Đang xóa...' : 'Xóa người dùng'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {userDetail && (
+        <UserDetailDialog
+          open={showUserDetailDialog}
+          onOpenChange={setShowUserDetailDialog}
+          user={userDetail}
+          onClose={handleCloseUserDetail}
+        />
+      )}
     </div>
   );
 };

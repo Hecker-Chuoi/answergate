@@ -3,54 +3,54 @@ import React from 'react';
 import { useTest } from '@/context/TestContext';
 import AnswerOption from './AnswerOption';
 import { Bookmark, BookmarkCheck } from 'lucide-react';
+import { Question, UserAnswer } from '@/types/test';
 import MathJax from './MathJax';
+import { Card } from '@/components/ui/card';
 
 interface QuestionCardProps {
   questionNumber: number;
+  question: Question;
+  userAnswer: UserAnswer | undefined;
+  onSelectOption: (optionId: string) => void;
 }
 
-const QuestionCard = ({ questionNumber }: QuestionCardProps) => {
-  const { currentQuestion, answerQuestion, markQuestion, currentTest } = useTest();
+const QuestionCard = ({ 
+  questionNumber, 
+  question, 
+  userAnswer,
+  onSelectOption 
+}: QuestionCardProps) => {
+  const { markQuestion } = useTest();
   
-  if (!currentQuestion || !currentTest) return null;
+  if (!question || !userAnswer) return null;
   
-  const currentAnswer = currentTest.userAnswers.find(
-    answer => answer.questionId === currentQuestion.id
-  );
-  
-  const isMarked = currentAnswer?.isMarked || false;
+  const isMarked = userAnswer.isMarked || false;
   
   const handleToggleMark = () => {
-    markQuestion(currentQuestion.id, !isMarked);
+    markQuestion(question.id, !isMarked);
   };
   
   const handleSelectOption = (optionId: string) => {
-    answerQuestion(currentQuestion.id, optionId);
+    onSelectOption(optionId);
   };
   
-  const letterMap = ['A', 'B', 'C', 'D'];
+  const letterMap = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
   
-  // Sample math formula for the first question
-  const mathFormula = questionNumber === 1 ? 
-    `Câu ${questionNumber}
+  const mathFormula = `Câu ${questionNumber}
     <div style="margin-top: 10px;">
-      Cho hàm số $y = \\frac{x^2 - 2m(m+1)x + 2m^3 + m^2 + 1}{x-m}$ có đồ thị $(C_m)$ (m là tham số thực). Gọi A là điểm thỏa mãn vừa là điểm cực đại của $(C_m)$ ứng với một giá trị m vừa là điểm cực tiểu của $(C_m)$ ứng với giá trị khác của m. Giá trị của a để khoảng cách từ A đến đường thẳng $(d) : x - (a + 1)y + a = 0$ đạt giá trị lớn nhất là
-    </div>` : 
-    `Câu ${questionNumber}
-    <div style="margin-top: 10px;">
-      ${currentQuestion.text}
+      ${question.text}
     </div>`;
 
   return (
-    <div className="animate-slide-in">
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-xl font-medium text-foreground">
+    <Card className="p-6 shadow-sm border border-gray-200">
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-xl font-medium text-gray-800">
           Câu {questionNumber}
         </h2>
         <button
           onClick={handleToggleMark}
           className={`p-2 rounded-full transition-colors duration-300 ${
-            isMarked ? 'text-test-marked' : 'text-muted-foreground hover:text-test-marked'
+            isMarked ? 'text-amber-500' : 'text-gray-400 hover:text-amber-500'
           }`}
           aria-label={isMarked ? "Bỏ đánh dấu câu hỏi" : "Đánh dấu câu hỏi để xem lại"}
         >
@@ -62,23 +62,23 @@ const QuestionCard = ({ questionNumber }: QuestionCardProps) => {
         </button>
       </div>
       
-      <div className="glass-panel rounded-xl p-6 mb-6">
+      <div className="bg-gray-50 rounded-lg p-4 mb-6">
         <MathJax formula={mathFormula} />
       </div>
       
       <div className="space-y-3">
-        {currentQuestion.options.map((option, index) => (
+        {question.options.map((option, index) => (
           <AnswerOption
             key={option.id}
             id={option.id}
             text={option.text}
-            isSelected={currentAnswer?.selectedOptionId === option.id}
+            isSelected={userAnswer?.selectedOptionId === option.id}
             onSelect={handleSelectOption}
             optionLetter={letterMap[index]}
           />
         ))}
       </div>
-    </div>
+    </Card>
   );
 };
 

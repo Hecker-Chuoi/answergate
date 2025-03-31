@@ -63,6 +63,7 @@ export const TestProvider: React.FC<{ children: React.ReactNode }> = ({ children
       startTime: new Date(),
       endTime: null,
       remainingTime: test.timeLimit * 60, // Convert minutes to seconds
+      totalQuestions: test.questions.length
     };
     
     setCurrentTest(newTestAttempt);

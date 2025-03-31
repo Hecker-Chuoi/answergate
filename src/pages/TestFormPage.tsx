@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { testService, Test, TestCreationRequest } from '@/services/testService';
 import { toast } from "sonner";
-import { TestQuestionEditor } from '@/components/TestQuestionEditor';
+import TestQuestionEditor from '@/components/TestQuestionEditor';
 import { ArrowLeft, Save } from "lucide-react";
 
 interface TestForm extends TestCreationRequest {
@@ -38,7 +38,7 @@ const TestFormPage = () => {
       }
       
       try {
-        const fetchedTest = await testService.getTest(token, Number(id));
+        const fetchedTest = await testService.getTestById(token, Number(id));
         setTest(fetchedTest);
         setFormData({
           testId: fetchedTest.testId,
