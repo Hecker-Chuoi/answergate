@@ -1,418 +1,216 @@
 
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { useParams, useNavigate } from 'react-router-dom';
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { FileText, Clock, Calendar, Edit, Plus, Trash, Save, X } from 'lucide-react';
+import { Badge } from "@/components/ui/badge";
 import { testService, Test, Question } from '@/services/testService';
-import { toast } from 'sonner';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import TestQuestionNavigation from '@/components/TestQuestionNavigation';
-import TestQuestionEditor from '@/components/TestQuestionEditor';
+import { format } from 'date-fns';
+import { toast } from "sonner";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { Eye, Trash2, Edit, Clock } from "lucide-react";
+import { QuestionNavigation, TestQuestionEditor } from '@/components';
 
 const TestDetailsPage = () => {
+  const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { id } = useParams();
-  const testId = Number(id);
-  
   const [test, setTest] = useState<Test | null>(null);
   const [questions, setQuestions] = useState<Question[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState("overview");
-  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const [isEditMode, setIsEditMode] = useState(false);
-  const [editingQuestions, setEditingQuestions] = useState<Question[]>([]);
-  const [showAddQuestionDialog, setShowAddQuestionDialog] = useState(false);
-  const [showDeleteQuestionDialog, setShowDeleteQuestionDialog] = useState(false);
-  const [selectedQuestionIndex, setSelectedQuestionIndex] = useState<number | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [activeQuestion, setActiveQuestion] = useState<number>(0);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState<boolean>(false);
+  
+  const token = localStorage.getItem('token') || '';
 
   useEffect(() => {
     const fetchTestDetails = async () => {
-      if (!testId) {
-        navigate('/exam-list');
-        return;
-      }
+      if (!id) return;
       
-      const token = sessionStorage.getItem('authToken');
-      if (!token) {
-        navigate('/login');
-        return;
-      }
-
+      setLoading(true);
       try {
-        setLoading(true);
-        const fetchedTest = await testService.getTestById(token, testId);
-        if (fetchedTest) {
-          setTest(fetchedTest);
-          const fetchedQuestions = await testService.getTestQuestions(token, testId);
-          setQuestions(fetchedQuestions);
-        } else {
-          toast.error('Không tìm thấy đề thi');
-          navigate('/exam-list');
-        }
+        const fetchedTest = await testService.getTest(token, Number(id));
+        setTest(fetchedTest);
+        
+        const fetchedQuestions = await testService.getQuestions(token, Number(id));
+        setQuestions(fetchedQuestions);
       } catch (error) {
         console.error('Error fetching test details:', error);
-        toast.error('Lỗi khi tải thông tin đề thi');
+        toast.error('Không thể tải thông tin bài kiểm tra');
       } finally {
         setLoading(false);
       }
     };
 
-    const checkAuth = () => {
-      const userStr = sessionStorage.getItem('currentUser');
-      if (!userStr) {
-        navigate('/login');
-        return;
-      }
-      
-      try {
-        const user = JSON.parse(userStr);
-        if (user.role !== 'ADMIN' && user.role !== 'admin') {
-          navigate('/');
-          return;
-        }
-      } catch (error) {
-        console.error('Error parsing user data:', error);
-        navigate('/login');
-      }
-    };
-
-    checkAuth();
     fetchTestDetails();
-  }, [testId, navigate]);
+  }, [id, token]);
 
-  const handleChangeQuestion = (index: number) => {
-    setCurrentQuestionIndex(index);
-  };
-
-  const handleStartEditing = () => {
-    setEditingQuestions([...questions]);
-    setIsEditMode(true);
-  };
-
-  const handleCancelEditing = () => {
-    setIsEditMode(false);
-  };
-
-  const handleSaveQuestions = async () => {
-    // Validate questions before saving
+  const handleDelete = async () => {
+    if (!id) return;
     
-    // Check for empty question texts
-    const emptyQuestionIndex = editingQuestions.findIndex(q => !q.questionText.trim());
-    if (emptyQuestionIndex !== -1) {
-      toast.error(`Câu hỏi ${emptyQuestionIndex + 1} không có nội dung`);
-      return;
-    }
-    
-    // Check for empty answer texts
-    for (let i = 0; i < editingQuestions.length; i++) {
-      const emptyAnswerIndex = editingQuestions[i].answers.findIndex(a => !a.answerText.trim());
-      if (emptyAnswerIndex !== -1) {
-        toast.error(`Đáp án ${emptyAnswerIndex + 1} của câu hỏi ${i + 1} không có nội dung`);
-        return;
-      }
-    }
-    
-    // Check for at least one correct answer per question
-    const noCorrectAnswerIndex = editingQuestions.findIndex(q => !q.answers.some(a => a.isCorrect));
-    if (noCorrectAnswerIndex !== -1) {
-      toast.error(`Câu hỏi ${noCorrectAnswerIndex + 1} phải có ít nhất một đáp án đúng`);
-      return;
-    }
-    
-    // Check for single choice questions having exactly one correct answer
-    const invalidSingleChoiceIndex = editingQuestions.findIndex(q => 
-      q.questionType === 'SINGLE_CHOICE' && q.answers.filter(a => a.isCorrect).length !== 1
-    );
-    if (invalidSingleChoiceIndex !== -1) {
-      toast.error(`Câu hỏi ${invalidSingleChoiceIndex + 1} là dạng một đáp án nhưng có nhiều hơn một đáp án đúng`);
-      return;
-    }
-    
-    const token = sessionStorage.getItem('authToken');
-    if (!token || !testId) return;
-
     try {
-      const success = await testService.setTestQuestions(token, testId, editingQuestions);
-      if (success) {
-        setQuestions(editingQuestions);
-        setIsEditMode(false);
-        toast.success('Lưu thay đổi thành công');
-      }
+      await testService.deleteTest(token, Number(id));
+      toast.success('Xóa bài kiểm tra thành công');
+      navigate('/exam-list');
     } catch (error) {
-      console.error('Error saving questions:', error);
-      toast.error('Lỗi khi lưu thay đổi');
+      console.error('Error deleting test:', error);
+      toast.error('Không thể xóa bài kiểm tra');
     }
   };
 
-  const handleUpdateQuestion = (updatedQuestion: Question, index: number) => {
-    const newQuestions = [...editingQuestions];
-    newQuestions[index] = updatedQuestion;
-    setEditingQuestions(newQuestions);
+  const handleEdit = () => {
+    navigate(`/edit-test/${id}`);
   };
 
-  const handleAddQuestion = () => {
-    const newQuestion: Question = {
-      questionText: '',
-      questionType: 'SINGLE_CHOICE',
-      answers: [
-        { answerText: '', isCorrect: true },
-        { answerText: '', isCorrect: false },
-        { answerText: '', isCorrect: false },
-        { answerText: '', isCorrect: false }
-      ]
-    };
-    
-    setEditingQuestions([...editingQuestions, newQuestion]);
-    setCurrentQuestionIndex(editingQuestions.length);
-  };
-
-  const handleDeleteQuestion = () => {
-    if (selectedQuestionIndex === null) return;
-    
-    const newQuestions = [...editingQuestions];
-    newQuestions.splice(selectedQuestionIndex, 1);
-    
-    setEditingQuestions(newQuestions);
-    setShowDeleteQuestionDialog(false);
-    
-    // Adjust current question index if needed
-    if (currentQuestionIndex >= newQuestions.length) {
-      setCurrentQuestionIndex(Math.max(0, newQuestions.length - 1));
-    }
+  const handleNavigate = (index: number) => {
+    setActiveQuestion(index);
   };
 
   if (loading) {
-    return <div className="container mx-auto p-6 text-center">Đang tải...</div>;
+    return (
+      <div className="container mx-auto py-10 text-center">
+        <p>Đang tải thông tin bài kiểm tra...</p>
+      </div>
+    );
+  }
+
+  if (!test) {
+    return (
+      <div className="container mx-auto py-10 text-center">
+        <p>Không tìm thấy thông tin bài kiểm tra</p>
+        <Button onClick={() => navigate('/exam-list')} className="mt-4">Quay lại danh sách</Button>
+      </div>
+    );
   }
 
   return (
-    <div className="container mx-auto p-6">
+    <div className="container mx-auto py-6">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">Chi tiết đề thi</h1>
-        <div className="flex gap-2">
-          <Button 
-            variant="outline" 
-            onClick={() => navigate('/exam-list')}
-          >
-            Quay lại
+        <div>
+          <h1 className="text-3xl font-bold">{test.testName}</h1>
+          <div className="flex items-center mt-2 space-x-2">
+            <Badge>{test.subject}</Badge>
+            <div className="text-sm text-gray-500">
+              {questions.length} câu hỏi
+            </div>
+            {test.isDeleted && (
+              <Badge variant="destructive">Đã xóa</Badge>
+            )}
+          </div>
+        </div>
+        <div className="flex space-x-2">
+          <Button onClick={handleEdit} variant="outline">
+            <Edit className="mr-2 h-4 w-4" />
+            Chỉnh sửa
           </Button>
+          
+          <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+            <AlertDialogTrigger asChild>
+              <Button variant="destructive">
+                <Trash2 className="mr-2 h-4 w-4" />
+                Xóa
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Bạn có chắc chắn muốn xóa?</AlertDialogTitle>
+              </AlertDialogHeader>
+              <p>Hành động này không thể hoàn tác. Bài kiểm tra sẽ bị xóa vĩnh viễn.</p>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Hủy</AlertDialogCancel>
+                <AlertDialogAction onClick={handleDelete}>Xóa</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       </div>
 
-      {test && (
-        <Tabs 
-          value={activeTab} 
-          onValueChange={setActiveTab}
-          className="w-full"
-        >
-          <TabsList className="grid grid-cols-2 w-[400px] mb-6">
-            <TabsTrigger value="overview">Tổng quan</TabsTrigger>
-            <TabsTrigger value="questions">Câu hỏi ({questions.length})</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="overview" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>{test.testName}</CardTitle>
-                <CardDescription>
-                  {test.subject && <span className="bg-blue-100 text-blue-800 py-1 px-2 rounded-full text-xs font-medium mr-2">{test.subject}</span>}
-                  <span className="bg-green-100 text-green-800 py-1 px-2 rounded-full text-xs font-medium">
-                    {test.deleted ? 'Đã xóa' : 'Đang hoạt động'}
-                  </span>
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <h3 className="font-medium text-gray-500 mb-2">Thông tin cơ bản</h3>
-                    <ul className="space-y-3">
-                      <li className="flex items-center gap-2">
-                        <FileText size={18} className="text-gray-500" />
-                        <span className="text-sm">
-                          <strong>Mã đề thi:</strong> {test.testId || 'Chưa có mã'}
-                        </span>
-                      </li>
-                      <li className="flex items-center gap-2">
-                        <FileText size={18} className="text-gray-500" />
-                        <span className="text-sm">
-                          <strong>Số câu hỏi:</strong> {questions.length || 0}
-                        </span>
-                      </li>
-                      <li className="flex items-center gap-2">
-                        <Clock size={18} className="text-gray-500" />
-                        <span className="text-sm">
-                          <strong>Thời gian làm bài:</strong> {test.totalTime || 0} phút
-                        </span>
-                      </li>
-                    </ul>
-                  </div>
-                  <div>
-                    <h3 className="font-medium text-gray-500 mb-2">Thời gian</h3>
-                    <ul className="space-y-3">
-                      <li className="flex items-center gap-2">
-                        <Calendar size={18} className="text-gray-500" />
-                        <span className="text-sm">
-                          <strong>Bắt đầu:</strong> {test.startTime ? new Date(test.startTime).toLocaleString('vi-VN') : 'Chưa đặt'}
-                        </span>
-                      </li>
-                      <li className="flex items-center gap-2">
-                        <Calendar size={18} className="text-gray-500" />
-                        <span className="text-sm">
-                          <strong>Kết thúc:</strong> {test.endTime ? new Date(test.endTime).toLocaleString('vi-VN') : 'Chưa đặt'}
-                        </span>
-                      </li>
-                      <li className="flex items-center gap-2">
-                        <Calendar size={18} className="text-gray-500" />
-                        <span className="text-sm">
-                          <strong>Cập nhật:</strong> {test.editedTime || 'N/A'}
-                        </span>
-                      </li>
-                    </ul>
-                  </div>
-                </div>
-
-                {test.description && (
-                  <div className="mt-6">
-                    <h3 className="font-medium text-gray-500 mb-2">Mô tả</h3>
-                    <p className="text-sm bg-gray-50 p-4 rounded-lg">{test.description}</p>
-                  </div>
-                )}
-
-                <div className="mt-6 flex justify-end">
-                  <Button 
-                    onClick={() => navigate(`/edit-test/${testId}`)}
-                    className="flex items-center gap-2"
-                  >
-                    <Edit size={16} />
-                    Chỉnh sửa thông tin
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="questions">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-semibold">Danh sách câu hỏi</h2>
-              <div className="flex gap-2">
-                {isEditMode ? (
-                  <>
-                    <Button variant="outline" onClick={handleCancelEditing} className="flex items-center gap-1">
-                      <X size={16} />
-                      Hủy bỏ
-                    </Button>
-                    <Button onClick={handleSaveQuestions} className="flex items-center gap-1">
-                      <Save size={16} />
-                      Lưu thay đổi
-                    </Button>
-                    <Button 
-                      onClick={handleAddQuestion}
-                      className="flex items-center gap-1"
-                    >
-                      <Plus size={16} />
-                      Thêm câu hỏi
-                    </Button>
-                  </>
-                ) : (
-                  <Button onClick={handleStartEditing} className="flex items-center gap-1">
-                    <Edit size={16} />
-                    Chỉnh sửa câu hỏi
-                  </Button>
-                )}
-              </div>
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        <Card className="lg:col-span-1">
+          <CardHeader>
+            <CardTitle>Thông tin</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <h4 className="text-sm font-medium">ID Bài kiểm tra</h4>
+              <p>{test.testId}</p>
             </div>
+            <div>
+              <h4 className="text-sm font-medium">Môn học</h4>
+              <p>{test.subject}</p>
+            </div>
+            <div>
+              <h4 className="text-sm font-medium">Số câu hỏi</h4>
+              <p>{questions.length}</p>
+            </div>
+            <div>
+              <h4 className="text-sm font-medium">Trạng thái</h4>
+              <p>{test.isDeleted ? 'Đã xóa' : 'Đang hoạt động'}</p>
+            </div>
+            <div>
+              <h4 className="text-sm font-medium">Thời gian chỉnh sửa</h4>
+              <p>{test.editedTime ? format(new Date(test.editedTime), 'dd/MM/yyyy HH:mm') : 'Chưa có'}</p>
+            </div>
+          </CardContent>
+        </Card>
 
-            {questions.length === 0 ? (
-              <div className="bg-white rounded-lg shadow-md p-8 text-center">
-                <p className="text-gray-500 mb-4">Đề thi này chưa có câu hỏi nào.</p>
-                <Button onClick={handleStartEditing}>Thêm câu hỏi ngay</Button>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div className="md:col-span-3 space-y-4">
-                  {isEditMode ? (
-                    // Show editing UI for the current question
-                    <>
-                      {editingQuestions.length > 0 && currentQuestionIndex < editingQuestions.length && (
-                        <div className="relative">
-                          <div className="absolute top-2 right-2 z-10">
-                            <Button 
-                              variant="destructive"
-                              size="sm"
-                              onClick={() => {
-                                setSelectedQuestionIndex(currentQuestionIndex);
-                                setShowDeleteQuestionDialog(true);
-                              }}
-                              className="flex items-center gap-1"
-                            >
-                              <Trash size={16} />
-                              Xóa câu hỏi
-                            </Button>
+        <div className="lg:col-span-3 flex flex-col">
+          <Card className="flex-1">
+            <CardHeader>
+              <CardTitle>Danh sách câu hỏi</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-col md:flex-row gap-4">
+                <div className="md:w-3/4">
+                  {questions.length > 0 ? (
+                    <div className="border rounded-md p-4">
+                      {questions[activeQuestion] && (
+                        <div>
+                          <h3 className="font-semibold mb-2">Câu hỏi {activeQuestion + 1}</h3>
+                          <p className="mb-4">{questions[activeQuestion].questionText}</p>
+                          <div className="space-y-2">
+                            {questions[activeQuestion].answers.map((answer, index) => (
+                              <div key={index} className={`p-2 border rounded-md ${
+                                answer.isCorrect ? 'border-green-500 bg-green-50' : 'border-gray-200'
+                              }`}>
+                                <div className="flex items-start">
+                                  <div className="mr-2">{String.fromCharCode(65 + index)}.</div>
+                                  <div>{answer.answerText}</div>
+                                </div>
+                              </div>
+                            ))}
                           </div>
-                          <TestQuestionEditor
-                            question={editingQuestions[currentQuestionIndex]}
-                            isEditing={true}
-                            onSave={(updatedQuestion) => handleUpdateQuestion(updatedQuestion, currentQuestionIndex)}
-                            onCancel={() => {}}
-                          />
+                          {questions[activeQuestion].explainText && (
+                            <div className="mt-4 p-4 bg-gray-50 rounded-md">
+                              <h4 className="font-medium mb-1">Giải thích:</h4>
+                              <p>{questions[activeQuestion].explainText}</p>
+                            </div>
+                          )}
                         </div>
                       )}
-                    </>
-                  ) : (
-                    // Show view-only UI for the current question
-                    <>
-                      {questions.length > 0 && currentQuestionIndex < questions.length && (
-                        <TestQuestionEditor
-                          question={questions[currentQuestionIndex]}
-                          isEditing={false}
-                          onSave={() => {}}
-                          onCancel={() => {}}
-                        />
+                      {questions.length === 0 && (
+                        <p>Không có câu hỏi nào</p>
                       )}
-                    </>
+                    </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <p>Bài kiểm tra này chưa có câu hỏi nào</p>
+                      <Button onClick={handleEdit} className="mt-4">Thêm câu hỏi</Button>
+                    </div>
                   )}
                 </div>
-                <div className="md:col-span-1 bg-white rounded-lg shadow-md h-[600px]">
-                  <TestQuestionNavigation
-                    questions={isEditMode ? editingQuestions : questions}
-                    currentQuestionIndex={currentQuestionIndex}
-                    onQuestionChange={handleChangeQuestion}
+                <div className="md:w-1/4">
+                  <QuestionNavigation 
+                    questionsCount={questions.length} 
+                    activeQuestion={activeQuestion}
+                    onNavigate={handleNavigate}
                   />
                 </div>
               </div>
-            )}
-          </TabsContent>
-        </Tabs>
-      )}
-
-      {/* Delete Question Dialog */}
-      <AlertDialog open={showDeleteQuestionDialog} onOpenChange={setShowDeleteQuestionDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Xác nhận xóa câu hỏi</AlertDialogTitle>
-            <AlertDialogDescription>
-              Bạn có chắc chắn muốn xóa câu hỏi này không? Hành động này không thể hoàn tác.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Hủy</AlertDialogCancel>
-            <AlertDialogAction className="bg-red-500 hover:bg-red-600" onClick={handleDeleteQuestion}>
-              Xóa
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
     </div>
   );
 };
