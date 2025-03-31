@@ -1,97 +1,102 @@
-import { toast } from "sonner";
 
+// Define API URL
 const API_URL = 'http://localhost:8080/exam';
 
-export type User = {
-  userId?: number;
+export interface User {
+  userId: number;
   username: string;
   fullName: string;
-  dob?: string;
-  gender?: 'MALE' | 'FEMALE' | 'OTHER';
-  phoneNumber?: string;
-  mail?: string;
-  hometown?: string;
+  gender: 'MALE' | 'FEMALE' | 'OTHER';
+  dob: string;
+  type: 'Chiến sĩ' | 'Sĩ quan' | 'Chuyên nghiệp';
   role: 'USER' | 'ADMIN';
-  type?: 'Chiến sĩ' | 'Sĩ quan' | 'Chuyên nghiệp';
-};
+  mail?: string;
+  phoneNumber?: string;
+  hometown?: string;
+}
 
-export type UserCreationRequest = {
+export interface UserResponse {
+  userId: number;
+  username: string;
   fullName: string;
-  dob: string;
   gender: 'MALE' | 'FEMALE' | 'OTHER';
-  phoneNumber?: string;
-  mail?: string;
-  hometown?: string;
-  type: 'Chiến sĩ' | 'Sĩ quan' | 'Chuyên nghiệp';
-};
-
-export type UserUpdateRequest = {
   dob: string;
-  gender: 'MALE' | 'FEMALE' | 'OTHER';
-  phoneNumber?: string;
-  mail?: string;
-  hometown?: string;
   type: 'Chiến sĩ' | 'Sĩ quan' | 'Chuyên nghiệp';
-};
+  role: 'USER' | 'ADMIN';
+  mail?: string;
+  phoneNumber?: string;
+  hometown?: string;
+}
 
-export type ApiResponse<T> = {
-  statusCode: number;
-  message: string;
-  result: T;
-};
+export interface UserCreationRequest {
+  fullName: string;
+  gender: 'MALE' | 'FEMALE' | 'OTHER';
+  dob: string;
+  type: 'Chiến sĩ' | 'Sĩ quan' | 'Chuyên nghiệp';
+  mail?: string;
+  phoneNumber?: string;
+  hometown?: string;
+}
 
-export const userService = {
+export interface UserUpdateRequest {
+  gender: 'MALE' | 'FEMALE' | 'OTHER';
+  dob: string;
+  type: 'Chiến sĩ' | 'Sĩ quan' | 'Chuyên nghiệp';
+  mail?: string;
+  phoneNumber?: string;
+  hometown?: string;
+}
+
+export interface ResultResponse {
+  testResultId: number;
+  sessionId: number;
+  candidateId: number;
+  status: 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED';
+  score: number;
+  timeTaken: number;
+  submitAt: string;
+  candidateAnswered: any[];
+}
+
+export interface UserDetailDialogProps {
+  user: User;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onClose: () => void;
+}
+
+const userService = {
   getAllUsers: async (token: string): Promise<User[]> => {
     try {
       const response = await fetch(`${API_URL}/user/all`, {
-        method: 'GET',
         headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
+          'Authorization': `Bearer ${token}`
+        }
       });
-      
-      if (response.ok) {
-        const data: ApiResponse<User[]> = await response.json();
-        return data.result || [];
-      }
-      
-      const errorData = await response.json();
-      toast.error(`Lỗi: ${errorData.message}`);
-      return [];
+      const data = await response.json();
+      return data.result;
     } catch (error) {
-      console.error('Lỗi khi lấy danh sách người dùng:', error);
-      toast.error('Không thể kết nối đến máy chủ');
-      return [];
+      console.error('Error fetching users:', error);
+      throw error;
     }
   },
 
-  getUserByUsername: async (token: string, username: string): Promise<User | null> => {
+  getUserByUsername: async (token: string, username: string): Promise<User> => {
     try {
       const response = await fetch(`${API_URL}/user/${username}`, {
-        method: 'GET',
         headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
+          'Authorization': `Bearer ${token}`
+        }
       });
-      
-      if (response.ok) {
-        const data: ApiResponse<User> = await response.json();
-        return data.result;
-      }
-      
-      const errorData = await response.json();
-      toast.error(`Lỗi: ${errorData.message}`);
-      return null;
+      const data = await response.json();
+      return data.result;
     } catch (error) {
-      console.error('Lỗi khi lấy thông tin người dùng:', error);
-      toast.error('Không thể kết nối đến máy chủ');
-      return null;
+      console.error(`Error fetching user ${username}:`, error);
+      throw error;
     }
   },
 
-  createUser: async (token: string, userData: UserCreationRequest): Promise<User | null> => {
+  createUser: async (token: string, userData: UserCreationRequest): Promise<User> => {
     try {
       const response = await fetch(`${API_URL}/user/one`, {
         method: 'POST',
@@ -101,24 +106,15 @@ export const userService = {
         },
         body: JSON.stringify(userData)
       });
-      
-      if (response.ok) {
-        const data: ApiResponse<User> = await response.json();
-        toast.success('Tạo người dùng thành công');
-        return data.result;
-      }
-      
-      const errorData = await response.json();
-      toast.error(`Lỗi: ${errorData.message}`);
-      return null;
+      const data = await response.json();
+      return data.result;
     } catch (error) {
-      console.error('Lỗi khi tạo người dùng:', error);
-      toast.error('Không thể kết nối đến máy chủ');
-      return null;
+      console.error('Error creating user:', error);
+      throw error;
     }
   },
 
-  updateUser: async (token: string, username: string, userData: UserUpdateRequest): Promise<User | null> => {
+  updateUser: async (token: string, username: string, userData: UserUpdateRequest): Promise<User> => {
     try {
       const response = await fetch(`${API_URL}/user/${username}`, {
         method: 'PUT',
@@ -128,53 +124,113 @@ export const userService = {
         },
         body: JSON.stringify(userData)
       });
-      
-      if (response.ok) {
-        const data: ApiResponse<User> = await response.json();
-        toast.success('Cập nhật người dùng thành công');
-        return data.result;
-      }
-      
-      const errorData = await response.json();
-      toast.error(`Lỗi: ${errorData.message}`);
-      return null;
+      const data = await response.json();
+      return data.result;
     } catch (error) {
-      console.error('Lỗi khi cập nhật người dùng:', error);
-      toast.error('Không thể kết nối đến máy chủ');
-      return null;
+      console.error(`Error updating user ${username}:`, error);
+      throw error;
     }
   },
 
-  deleteUser: async (token: string, username: string): Promise<boolean> => {
+  deleteUser: async (token: string, username: string): Promise<string> => {
     try {
       const response = await fetch(`${API_URL}/user/${username}`, {
         method: 'DELETE',
         headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+          'Authorization': `Bearer ${token}`
         }
       });
-      
-      if (response.ok) {
-        toast.success('Xóa người dùng thành công');
-        return true;
-      }
-      
-      const errorData = await response.json();
-      toast.error(`Lỗi: ${errorData.message}`);
-      return false;
+      const data = await response.json();
+      return data.result;
     } catch (error) {
-      console.error('Lỗi khi xóa người dùng:', error);
-      toast.error('Không thể kết nối đến máy chủ');
-      return false;
+      console.error(`Error deleting user ${username}:`, error);
+      throw error;
     }
   },
 
-  uploadUsersExcel: async (token: string, file: File): Promise<User[] | null> => {
+  getUsersByType: async (token: string, types: string[]): Promise<User[]> => {
+    try {
+      const response = await fetch(`${API_URL}/user/type`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(types)
+      });
+      const data = await response.json();
+      return data.result;
+    } catch (error) {
+      console.error('Error fetching users by type:', error);
+      throw error;
+    }
+  },
+  
+  getMyInfo: async (token: string): Promise<User> => {
+    try {
+      const response = await fetch(`${API_URL}/user/myInfo`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      const data = await response.json();
+      return data.result;
+    } catch (error) {
+      console.error('Error fetching my info:', error);
+      throw error;
+    }
+  },
+  
+  getAssignedSessions: async (token: string, status: string): Promise<ResultResponse[]> => {
+    try {
+      const response = await fetch(`${API_URL}/user/assigned-session/${status}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      const data = await response.json();
+      return data.result;
+    } catch (error) {
+      console.error(`Error fetching assigned sessions with status ${status}:`, error);
+      throw error;
+    }
+  },
+  
+  getUserAssignedSessions: async (token: string, username: string, status: string): Promise<ResultResponse[]> => {
+    try {
+      const response = await fetch(`${API_URL}/user/${username}/assigned-session/${status}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      const data = await response.json();
+      return data.result;
+    } catch (error) {
+      console.error(`Error fetching assigned sessions for user ${username} with status ${status}:`, error);
+      throw error;
+    }
+  },
+  
+  getUpcomingSession: async (token: string): Promise<any[]> => {
+    try {
+      const response = await fetch(`${API_URL}/user/upcomingSessions`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      const data = await response.json();
+      return data.result;
+    } catch (error) {
+      console.error('Error fetching upcoming sessions:', error);
+      throw error;
+    }
+  },
+  
+  createUsers: async (token: string, file: File): Promise<User[]> => {
     try {
       const formData = new FormData();
       formData.append('file', file);
-
+      
       const response = await fetch(`${API_URL}/user/many`, {
         method: 'POST',
         headers: {
@@ -182,71 +238,28 @@ export const userService = {
         },
         body: formData
       });
-      
-      if (response.ok) {
-        const data: ApiResponse<User[]> = await response.json();
-        toast.success('Tải lên và tạo người dùng thành công');
-        return data.result;
-      }
-      
-      const errorData = await response.json();
-      toast.error(`Lỗi: ${errorData.message}`);
-      return null;
+      const data = await response.json();
+      return data.result;
     } catch (error) {
-      console.error('Lỗi khi tải lên tệp Excel:', error);
-      toast.error('Không thể kết nối đến máy chủ');
-      return null;
+      console.error('Error creating users from file:', error);
+      throw error;
     }
   },
-
-  getUsersByType: async (token: string, types: string[]): Promise<User[] | null> => {
-    try {
-      const response = await fetch(`${API_URL}/user/type`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(types)
-      });
-      
-      if (response.ok) {
-        const data: ApiResponse<User[]> = await response.json();
-        return data.result;
-      }
-      
-      const errorData = await response.json();
-      toast.error(`Lỗi: ${errorData.message}`);
-      return null;
-    } catch (error) {
-      console.error('Lỗi khi lấy danh sách người dùng theo loại:', error);
-      toast.error('Không thể kết nối đến máy chủ');
-      return null;
-    }
-  },
-
+  
   getSessionCandidates: async (token: string, sessionId: number): Promise<User[]> => {
     try {
       const response = await fetch(`${API_URL}/session/${sessionId}/candidates`, {
-        method: 'GET',
         headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
+          'Authorization': `Bearer ${token}`
+        }
       });
-      
-      if (response.ok) {
-        const data: ApiResponse<User[]> = await response.json();
-        return data.result || [];
-      }
-      
-      const errorData = await response.json();
-      toast.error(`Lỗi: ${errorData.message}`);
-      return [];
+      const data = await response.json();
+      return data.result;
     } catch (error) {
-      console.error('Lỗi khi lấy danh sách thí sinh của phiên thi:', error);
-      toast.error('Không thể kết nối đến máy chủ');
-      return [];
+      console.error(`Error fetching candidates for session ${sessionId}:`, error);
+      throw error;
     }
   }
 };
+
+export { userService };

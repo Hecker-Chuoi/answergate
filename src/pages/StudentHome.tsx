@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Calendar, Clock, ArrowRight } from 'lucide-react';
@@ -13,30 +12,47 @@ const StudentHome = () => {
   const navigate = useNavigate();
   const [upcomingSessions, setUpcomingSessions] = useState<SessionResponse[]>([]);
   const [loading, setLoading] = useState(true);
-  
-  const token = localStorage.getItem('token') || '';
+  const [user, setUser] = useState<any>(null);
   
   useEffect(() => {
-    const fetchSessions = async () => {
+    const fetchUserInfo = async () => {
       try {
-        const user = await userService.getCurrentUser(token);
-        if (!user) {
+        const token = localStorage.getItem('token');
+        if (!token) {
           navigate('/login');
           return;
         }
         
-        const sessions = await sessionService.getUpcomingSessions(token);
-        setUpcomingSessions(sessions);
+        const userInfo = await userService.getMyInfo(token);
+        setUser(userInfo);
       } catch (error) {
-        console.error('Error fetching sessions:', error);
-        toast.error('Không thể tải danh sách bài thi sắp tới');
-      } finally {
-        setLoading(false);
+        console.error('Error fetching user info:', error);
+        toast.error('Không thể tải thông tin người dùng');
+        navigate('/login');
       }
     };
     
-    fetchSessions();
-  }, [token, navigate]);
+    fetchUserInfo();
+  }, [navigate]);
+  
+  useEffect(() => {
+    const fetchUpcomingSessions = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) return;
+        
+        const sessions = await userService.getUpcomingSession(token);
+        setUpcomingSessions(sessions);
+      } catch (error) {
+        console.error('Error fetching upcoming sessions:', error);
+        toast.error('Không thể tải danh sách buổi thi sắp tới');
+      }
+    };
+    
+    if (user) {
+      fetchUpcomingSessions();
+    }
+  }, [user]);
   
   const formatDateTime = (dateTimeStr: string) => {
     try {

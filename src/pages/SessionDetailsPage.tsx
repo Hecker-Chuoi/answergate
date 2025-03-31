@@ -4,12 +4,27 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowLeft, Users, ClipboardList, Check, Clock, Calendar, CalendarClock } from 'lucide-react';
+import { 
+  ArrowLeft, Users, ClipboardList, Check, Clock, 
+  Calendar, CalendarClock, PenSquare, FileText, UserPlus 
+} from 'lucide-react';
 import { sessionService, SessionResponse } from '@/services/sessionService';
 import { testService } from '@/services/testService';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { vi } from 'date-fns/locale';
+import { 
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import SessionEditForm from '@/components/SessionEditForm';
+import SessionTestChange from '@/components/SessionTestChange';
+import SessionCandidateManage from '@/components/SessionCandidateManage';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 const SessionDetailsPage = () => {
   const { id } = useParams<{ id: string }>();
@@ -20,34 +35,40 @@ const SessionDetailsPage = () => {
   const [test, setTest] = useState<any>(null);
   const [candidates, setCandidates] = useState<any[]>([]);
   const [results, setResults] = useState<any[]>([]);
+  
+  // Dialog states
+  const [showEditDialog, setShowEditDialog] = useState(false);
+  const [showTestChangeDialog, setShowTestChangeDialog] = useState(false);
+  const [showCandidateDialog, setShowCandidateDialog] = useState(false);
 
   const token = localStorage.getItem('token') || '';
   
+  const fetchSessionData = async () => {
+    try {
+      setLoading(true);
+      const fetchedSession = await sessionService.getSession(token, Number(id));
+      setSession(fetchedSession);
+      
+      // Fetch associated test
+      const fetchedTest = await testService.getTestById(token, fetchedSession.testId);
+      setTest(fetchedTest);
+      
+      // Fetch candidates
+      const fetchedCandidates = await sessionService.getCandidates(token, Number(id));
+      setCandidates(fetchedCandidates);
+      
+      // Fetch results
+      const fetchedResults = await sessionService.getCandidateResults(token, Number(id));
+      setResults(fetchedResults);
+    } catch (error) {
+      console.error('Error fetching session data:', error);
+      toast.error('Không thể tải thông tin buổi thi');
+    } finally {
+      setLoading(false);
+    }
+  };
+  
   useEffect(() => {
-    const fetchSessionData = async () => {
-      try {
-        const fetchedSession = await sessionService.getSession(token, Number(id));
-        setSession(fetchedSession);
-        
-        // Fetch associated test
-        const fetchedTest = await testService.getTestById(token, fetchedSession.testId);
-        setTest(fetchedTest);
-        
-        // Fetch candidates
-        const fetchedCandidates = await sessionService.getCandidates(token, Number(id));
-        setCandidates(fetchedCandidates);
-        
-        // Fetch results
-        const fetchedResults = await sessionService.getCandidateResults(token, Number(id));
-        setResults(fetchedResults);
-      } catch (error) {
-        console.error('Error fetching session data:', error);
-        toast.error('Không thể tải thông tin buổi thi');
-      } finally {
-        setLoading(false);
-      }
-    };
-    
     fetchSessionData();
   }, [id, token]);
 
@@ -68,6 +89,22 @@ const SessionDetailsPage = () => {
     }
     
     return duration;
+  };
+
+  const handleSessionUpdate = (updatedSession: SessionResponse) => {
+    setSession(updatedSession);
+    setShowEditDialog(false);
+    fetchSessionData();
+  };
+
+  const handleTestChanged = () => {
+    setShowTestChangeDialog(false);
+    fetchSessionData();
+  };
+
+  const handleCandidatesChanged = () => {
+    setShowCandidateDialog(false);
+    fetchSessionData();
   };
 
   if (loading) {
@@ -100,12 +137,27 @@ const SessionDetailsPage = () => {
           <h1 className="text-2xl font-bold">Chi tiết buổi thi</h1>
         </div>
         <div className="flex space-x-2">
-          <Button 
-            variant="outline" 
-            onClick={() => navigate(`/edit-session/${session.sessionId}`)}
-          >
-            Chỉnh sửa
-          </Button>
+          <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
+            <DialogTrigger asChild>
+              <Button variant="outline">
+                <PenSquare className="h-4 w-4 mr-2" />
+                Chỉnh sửa
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle>Chỉnh sửa buổi thi</DialogTitle>
+                <DialogDescription>
+                  Thay đổi thời gian và thời lượng của buổi thi.
+                </DialogDescription>
+              </DialogHeader>
+              <SessionEditForm 
+                session={session}
+                onUpdate={handleSessionUpdate}
+                onCancel={() => setShowEditDialog(false)}
+              />
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
 
@@ -164,8 +216,30 @@ const SessionDetailsPage = () => {
             </Card>
             
             <Card>
-              <CardHeader>
+              <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle>Thông tin bài kiểm tra</CardTitle>
+                <Dialog open={showTestChangeDialog} onOpenChange={setShowTestChangeDialog}>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" size="sm">
+                      <FileText className="h-4 w-4 mr-2" />
+                      Đổi đề thi
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-3xl">
+                    <DialogHeader>
+                      <DialogTitle>Chọn đề thi</DialogTitle>
+                      <DialogDescription>
+                        Chọn một đề thi để thay thế cho đề thi hiện tại.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <SessionTestChange
+                      sessionId={session.sessionId}
+                      currentTestId={session.testId}
+                      onTestChanged={handleTestChanged}
+                      onCancel={() => setShowTestChangeDialog(false)}
+                    />
+                  </DialogContent>
+                </Dialog>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
@@ -201,39 +275,59 @@ const SessionDetailsPage = () => {
         
         <TabsContent value="candidates">
           <Card>
-            <CardHeader>
+            <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle>Danh sách thí sinh ({candidates.length})</CardTitle>
+              <Dialog open={showCandidateDialog} onOpenChange={setShowCandidateDialog}>
+                <DialogTrigger asChild>
+                  <Button>
+                    <UserPlus className="h-4 w-4 mr-2" />
+                    Thêm thí sinh
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-md">
+                  <DialogHeader>
+                    <DialogTitle>Thêm thí sinh</DialogTitle>
+                    <DialogDescription>
+                      Thêm thí sinh theo loại hoặc tùy chỉnh.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <SessionCandidateManage
+                    sessionId={session.sessionId}
+                    onCandidatesChanged={handleCandidatesChanged}
+                    onCancel={() => setShowCandidateDialog(false)}
+                  />
+                </DialogContent>
+              </Dialog>
             </CardHeader>
             <CardContent>
               {candidates.length === 0 ? (
                 <div className="text-center py-8">
                   <p className="text-gray-500">Chưa có thí sinh nào được thêm vào buổi thi này</p>
-                  <Button className="mt-4">Thêm thí sinh</Button>
                 </div>
               ) : (
                 <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="border-b">
-                        <th className="text-left py-3 px-4 font-medium">Họ và tên</th>
-                        <th className="text-left py-3 px-4 font-medium">Tên đăng nhập</th>
-                        <th className="text-left py-3 px-4 font-medium">Loại</th>
-                        <th className="text-left py-3 px-4 font-medium">Email</th>
-                        <th className="text-left py-3 px-4 font-medium">Số điện thoại</th>
-                      </tr>
-                    </thead>
-                    <tbody>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Họ và tên</TableHead>
+                        <TableHead>Tên đăng nhập</TableHead>
+                        <TableHead>Loại</TableHead>
+                        <TableHead>Email</TableHead>
+                        <TableHead>Số điện thoại</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
                       {candidates.map((candidate) => (
-                        <tr key={candidate.userId} className="border-b hover:bg-gray-50">
-                          <td className="py-3 px-4">{candidate.fullName}</td>
-                          <td className="py-3 px-4">{candidate.username}</td>
-                          <td className="py-3 px-4">{candidate.type}</td>
-                          <td className="py-3 px-4">{candidate.mail || '-'}</td>
-                          <td className="py-3 px-4">{candidate.phoneNumber || '-'}</td>
-                        </tr>
+                        <TableRow key={candidate.userId}>
+                          <TableCell>{candidate.fullName}</TableCell>
+                          <TableCell>{candidate.username}</TableCell>
+                          <TableCell>{candidate.type}</TableCell>
+                          <TableCell>{candidate.mail || '-'}</TableCell>
+                          <TableCell>{candidate.phoneNumber || '-'}</TableCell>
+                        </TableRow>
                       ))}
-                    </tbody>
-                  </table>
+                    </TableBody>
+                  </Table>
                 </div>
               )}
             </CardContent>
@@ -252,22 +346,22 @@ const SessionDetailsPage = () => {
                 </div>
               ) : (
                 <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="border-b">
-                        <th className="text-left py-3 px-4 font-medium">ID</th>
-                        <th className="text-left py-3 px-4 font-medium">Trạng thái</th>
-                        <th className="text-left py-3 px-4 font-medium">Điểm</th>
-                        <th className="text-left py-3 px-4 font-medium">Thời gian làm</th>
-                        <th className="text-left py-3 px-4 font-medium">Thời gian nộp bài</th>
-                        <th className="text-right py-3 px-4 font-medium">Thao tác</th>
-                      </tr>
-                    </thead>
-                    <tbody>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>ID</TableHead>
+                        <TableHead>Trạng thái</TableHead>
+                        <TableHead>Điểm</TableHead>
+                        <TableHead>Thời gian làm</TableHead>
+                        <TableHead>Thời gian nộp bài</TableHead>
+                        <TableHead className="text-right">Thao tác</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
                       {results.map((result) => (
-                        <tr key={result.testResultId} className="border-b hover:bg-gray-50">
-                          <td className="py-3 px-4">{result.testResultId}</td>
-                          <td className="py-3 px-4">
+                        <TableRow key={result.testResultId}>
+                          <TableCell>{result.testResultId}</TableCell>
+                          <TableCell>
                             <div className="flex items-center">
                               <span
                                 className={`w-2 h-2 rounded-full mr-2 ${
@@ -284,31 +378,31 @@ const SessionDetailsPage = () => {
                                 ? 'Đang làm bài'
                                 : 'Chưa bắt đầu'}
                             </div>
-                          </td>
-                          <td className="py-3 px-4 font-medium">
+                          </TableCell>
+                          <TableCell className="font-medium">
                             {result.score.toFixed(2)}
-                          </td>
-                          <td className="py-3 px-4">
+                          </TableCell>
+                          <TableCell>
                             {result.timeTaken ? `${Math.floor(result.timeTaken / 60)} phút` : '-'}
-                          </td>
-                          <td className="py-3 px-4">
+                          </TableCell>
+                          <TableCell>
                             {result.submitAt
                               ? format(new Date(result.submitAt), 'Pp', { locale: vi })
                               : '-'}
-                          </td>
-                          <td className="py-3 px-4 text-right">
+                          </TableCell>
+                          <TableCell className="text-right">
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => navigate(`/result-details/${result.testResultId}`)}
+                              onClick={() => navigate(`/detailed-results/${result.testResultId}`)}
                             >
                               Chi tiết
                             </Button>
-                          </td>
-                        </tr>
+                          </TableCell>
+                        </TableRow>
                       ))}
-                    </tbody>
-                  </table>
+                    </TableBody>
+                  </Table>
                 </div>
               )}
             </CardContent>
