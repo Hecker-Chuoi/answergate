@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
@@ -35,7 +34,6 @@ const ExamListPage = () => {
   });
 
   useEffect(() => {
-    // Get user info from session storage
     const userStr = sessionStorage.getItem('currentUser');
     const tokenStr = sessionStorage.getItem('authToken');
     
@@ -103,7 +101,6 @@ const ExamListPage = () => {
     
     const token = sessionStorage.getItem('authToken');
     if (token) {
-      // Validate form
       if (!editFormData.testName) {
         toast.error('Tên đề thi không được để trống');
         return;
@@ -221,7 +218,7 @@ const ExamListPage = () => {
                             <Edit size={16} />
                             Sửa
                           </Button>
-                          {!test.deleted ? (
+                          {!test.isDeleted ? (
                             <Button 
                               variant="ghost" 
                               size="sm"

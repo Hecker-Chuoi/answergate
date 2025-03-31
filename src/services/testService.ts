@@ -17,6 +17,11 @@ export type TestCreationRequest = {
   subject?: string;
 };
 
+export type TestUpdateRequest = {
+  testName: string;
+  subject?: string;
+};
+
 export type Answer = {
   answerId?: number;
   answerText: string;
@@ -151,7 +156,7 @@ export const testService = {
     }
   },
 
-  updateTest: async (token: string, testId: number, testData: TestCreationRequest): Promise<Test | null> => {
+  updateTest: async (token: string, testId: number, testData: TestUpdateRequest): Promise<Test | null> => {
     try {
       const response = await fetch(`${API_URL}/test/${testId}`, {
         method: 'PUT',

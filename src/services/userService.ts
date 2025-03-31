@@ -1,4 +1,3 @@
-
 import { toast } from "sonner";
 
 const API_URL = 'http://localhost:8080/exam';
@@ -223,6 +222,31 @@ export const userService = {
       console.error('Lỗi khi lấy danh sách người dùng theo loại:', error);
       toast.error('Không thể kết nối đến máy chủ');
       return null;
+    }
+  },
+
+  getSessionCandidates: async (token: string, sessionId: number): Promise<User[]> => {
+    try {
+      const response = await fetch(`${API_URL}/session/${sessionId}/candidates`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+      });
+      
+      if (response.ok) {
+        const data: ApiResponse<User[]> = await response.json();
+        return data.result || [];
+      }
+      
+      const errorData = await response.json();
+      toast.error(`Lỗi: ${errorData.message}`);
+      return [];
+    } catch (error) {
+      console.error('Lỗi khi lấy danh sách thí sinh của phiên thi:', error);
+      toast.error('Không thể kết nối đến máy chủ');
+      return [];
     }
   }
 };

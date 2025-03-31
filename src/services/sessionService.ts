@@ -2,6 +2,7 @@
 import { toast } from "sonner";
 import { Test } from "./testService";
 import { User } from "./userService";
+import { Question } from "./testService";
 
 const API_URL = 'http://localhost:8080/exam';
 

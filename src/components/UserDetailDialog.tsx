@@ -13,6 +13,7 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { User, UserUpdateRequest, userService } from '@/services/userService';
 import { toast } from 'sonner';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface UserDetailDialogProps {
   user: User | null;
@@ -26,22 +27,22 @@ const UserDetailDialog = ({ user, isOpen, onClose, onUserUpdated, token }: UserD
   const [isEditing, setIsEditing] = useState(false);
   const [userUpdateData, setUserUpdateData] = useState<UserUpdateRequest>({
     dob: '',
-    gender: '',
+    gender: 'MALE', // Default to prevent "" type error
     phoneNumber: '',
     mail: '',
-    unit: '',
-    hometown: ''
+    hometown: '',
+    type: 'Chiến sĩ' // Default to prevent "" type error
   });
 
   React.useEffect(() => {
     if (user) {
       setUserUpdateData({
         dob: user.dob || '',
-        gender: user.gender || '',
+        gender: user.gender || 'MALE',
         phoneNumber: user.phoneNumber || '',
         mail: user.mail || '',
-        unit: user.unit || '',
-        hometown: user.hometown || ''
+        hometown: user.hometown || '',
+        type: user.type || 'Chiến sĩ'
       });
     }
   }, [user]);
@@ -130,14 +131,29 @@ const UserDetailDialog = ({ user, isOpen, onClose, onUserUpdated, token }: UserD
           <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="gender" className="text-right font-medium">Giới tính:</Label>
             {isEditing ? (
-              <Input
-                id="gender"
-                value={userUpdateData.gender}
-                onChange={(e) => setUserUpdateData({...userUpdateData, gender: e.target.value})}
-                className="col-span-3"
-              />
+              <div className="col-span-3">
+                <Select 
+                  value={userUpdateData.gender} 
+                  onValueChange={(value: 'MALE' | 'FEMALE' | 'OTHER') => 
+                    setUserUpdateData({...userUpdateData, gender: value})
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Chọn giới tính" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="MALE">Nam</SelectItem>
+                    <SelectItem value="FEMALE">Nữ</SelectItem>
+                    <SelectItem value="OTHER">Khác</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             ) : (
-              <div className="col-span-3">{user.gender || '-'}</div>
+              <div className="col-span-3">
+                {user.gender === 'MALE' ? 'Nam' : 
+                 user.gender === 'FEMALE' ? 'Nữ' : 
+                 user.gender === 'OTHER' ? 'Khác' : '-'}
+              </div>
             )}
           </div>
           
@@ -171,16 +187,27 @@ const UserDetailDialog = ({ user, isOpen, onClose, onUserUpdated, token }: UserD
           </div>
           
           <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="unit" className="text-right font-medium">Đơn vị:</Label>
+            <Label htmlFor="type" className="text-right font-medium">Loại:</Label>
             {isEditing ? (
-              <Input
-                id="unit"
-                value={userUpdateData.unit}
-                onChange={(e) => setUserUpdateData({...userUpdateData, unit: e.target.value})}
-                className="col-span-3"
-              />
+              <div className="col-span-3">
+                <Select 
+                  value={userUpdateData.type} 
+                  onValueChange={(value: 'Chiến sĩ' | 'Sĩ quan' | 'Chuyên nghiệp') => 
+                    setUserUpdateData({...userUpdateData, type: value})
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Chọn loại" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Chiến sĩ">Chiến sĩ</SelectItem>
+                    <SelectItem value="Sĩ quan">Sĩ quan</SelectItem>
+                    <SelectItem value="Chuyên nghiệp">Chuyên nghiệp</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             ) : (
-              <div className="col-span-3">{user.unit || '-'}</div>
+              <div className="col-span-3">{user.type || '-'}</div>
             )}
           </div>
           
