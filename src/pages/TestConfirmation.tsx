@@ -6,7 +6,7 @@ import { toast } from 'sonner';
 import { Test } from '@/services/testService';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { CheckCircle2, Loader2, Clock, FileText } from 'lucide-react';
+import { CheckCircle2, Loader2, Clock, FileText, Calendar as CalendarIcon } from 'lucide-react';
 import { format, differenceInSeconds } from 'date-fns';
 
 const TestConfirmation = () => {
@@ -186,7 +186,7 @@ const TestConfirmation = () => {
                 </div>
               </div>
               <div className="flex items-start space-x-2">
-                <Calendar className="h-5 w-5 text-gray-500 mt-0.5" />
+                <CalendarIcon className="h-5 w-5 text-gray-500 mt-0.5" />
                 <div>
                   <p className="text-sm font-medium text-gray-500">Thời gian bắt đầu</p>
                   <p>{format(new Date(sessionData.startTime), 'dd/MM/yyyy HH:mm')}</p>

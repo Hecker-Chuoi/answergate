@@ -434,9 +434,9 @@ interface EditUserDialogProps {
 
 const EditUserDialog: React.FC<EditUserDialogProps> = ({ user, open, onOpenChange, onUpdate, onClose, isUpdating }) => {
   const [editForm, setEditForm] = useState<UserUpdateRequest>({
-    gender: user.gender,
-    dob: user.dob,
-    type: user.type,
+    gender: user.gender as 'MALE' | 'FEMALE' | 'OTHER' || 'MALE',
+    dob: user.dob || '',
+    type: user.type || 'Chiến sĩ',
     mail: user.mail || '',
     phoneNumber: user.phoneNumber || '',
     hometown: user.hometown || '',

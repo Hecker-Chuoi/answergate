@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Loader2 } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { sessionService } from '@/services/sessionService';
-import { userService } from '@/services/userService';
+import { userService, UserResponse } from '@/services/userService';
 import { toast } from 'sonner';
 
 interface User {
@@ -43,8 +43,16 @@ const SessionCandidateManageByUsernames: React.FC<SessionCandidateManageByUserna
         if (!token) throw new Error('Token not found');
         
         const usersData = await userService.getAllUsers(token);
-        // Filter out admin users
-        const filteredUsers = usersData.filter(user => user.role !== 'ADMIN');
+        // Filter out admin users and transform UserResponse[] to User[]
+        const filteredUsers: User[] = usersData
+          .filter(user => user.role !== 'ADMIN')
+          .map(user => ({
+            userId: user.userId,
+            username: user.username,
+            fullName: user.fullName,
+            type: user.type || 'Không xác định', // Provide a default value if type is optional
+            role: user.role
+          }));
         setUsers(filteredUsers);
       } catch (error) {
         console.error('Error fetching users:', error);

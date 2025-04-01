@@ -38,7 +38,7 @@ const UserDetailDialog = ({ user, isOpen, onClose, onUserUpdated, token }: UserD
     if (user) {
       setUserUpdateData({
         dob: user.dob || '',
-        gender: user.gender || 'MALE',
+        gender: user.gender as 'MALE' | 'FEMALE' | 'OTHER' || 'MALE',
         phoneNumber: user.phoneNumber || '',
         mail: user.mail || '',
         hometown: user.hometown || '',

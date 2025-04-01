@@ -1,10 +1,9 @@
-
 // Define API URL
 const API_URL = 'http://localhost:8080/exam';
 
 export interface UserCreationRequest {
   fullName: string;
-  dob: string; // Format: YYYY-MM-DD
+  dob: string; // Format: DD/MM/YYYY
   gender: 'MALE' | 'FEMALE' | 'OTHER';
   phoneNumber?: string;
   mail?: string;
@@ -44,7 +43,7 @@ export interface User {
   mail?: string;
   hometown?: string;
   role: string;
-  type?: string;
+  type: string;
 }
 
 export interface ResultResponse {
