@@ -1,12 +1,14 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Calendar, Clock, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { userService } from '@/services/userService';
 import { sessionService, SessionResponse } from '@/services/sessionService';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 const StudentHome = () => {
   const navigate = useNavigate();
@@ -29,6 +31,8 @@ const StudentHome = () => {
         console.error('Error fetching user info:', error);
         toast.error('Không thể tải thông tin người dùng');
         navigate('/login');
+      } finally {
+        setLoading(false);
       }
     };
     
@@ -74,6 +78,25 @@ const StudentHome = () => {
     return result.trim() || 'Không xác định';
   };
   
+  const handleViewTest = async (sessionId: number) => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        navigate('/login');
+        return;
+      }
+      
+      // Check if the test is available
+      await sessionService.getTakingTest(token, sessionId);
+      
+      // If successful, navigate to the test confirmation page
+      navigate(`/test-confirmation/${sessionId}`);
+    } catch (error) {
+      console.error('Error accessing test:', error);
+      toast.error('Không thể truy cập bài kiểm tra này');
+    }
+  };
+  
   if (loading) {
     return (
       <div className="container mx-auto py-10 text-center">
@@ -92,53 +115,54 @@ const StudentHome = () => {
           <p className="text-gray-500">Hiện tại bạn không có bài kiểm tra nào sắp tới</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {upcomingSessions.map((session) => {
-            const startTime = new Date(session.startTime);
-            const isAvailable = startTime <= new Date();
-            
-            return (
-              <Card key={session.sessionId} className="overflow-hidden">
-                <CardHeader className="pb-3">
-                  <CardTitle>Kỳ thi {session.sessionId}</CardTitle>
-                  <CardDescription>
-                    {isAvailable ? 'Đã bắt đầu' : 'Sắp diễn ra'}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="flex items-center">
-                    <Calendar className="h-4 w-4 mr-2 text-gray-500" />
-                    <span className="text-sm">
-                      Thời gian bắt đầu: {formatDateTime(session.startTime)}
-                    </span>
-                  </div>
-                  <div className="flex items-center">
-                    <Clock className="h-4 w-4 mr-2 text-gray-500" />
-                    <span className="text-sm">
-                      Thời gian làm bài: {formatTimeLimit(session.timeLimit)}
-                    </span>
-                  </div>
-                </CardContent>
-                <CardFooter>
-                  <Button 
-                    className="w-full"
-                    disabled={!isAvailable}
-                    onClick={() => navigate(`/test-confirmation/${session.sessionId}`)}
-                  >
-                    {isAvailable ? (
-                      <>
-                        Vào làm bài
-                        <ArrowRight className="h-4 w-4 ml-2" />
-                      </>
-                    ) : (
-                      'Chưa đến thời gian'
-                    )}
-                  </Button>
-                </CardFooter>
-              </Card>
-            );
-          })}
-        </div>
+        <Card>
+          <CardHeader>
+            <CardTitle>Danh sách bài kiểm tra sắp diễn ra</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Mã phiên</TableHead>
+                  <TableHead>Thời gian bắt đầu</TableHead>
+                  <TableHead>Thời gian làm bài</TableHead>
+                  <TableHead>Trạng thái</TableHead>
+                  <TableHead className="text-right">Thao tác</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {upcomingSessions.map((session) => {
+                  const startTime = new Date(session.startTime);
+                  const isAvailable = startTime <= new Date();
+                  
+                  return (
+                    <TableRow key={session.sessionId}>
+                      <TableCell className="font-medium">#{session.sessionId}</TableCell>
+                      <TableCell>{formatDateTime(session.startTime)}</TableCell>
+                      <TableCell>{formatTimeLimit(session.timeLimit)}</TableCell>
+                      <TableCell>
+                        {isAvailable ? (
+                          <span className="text-green-600 font-medium">Đã bắt đầu</span>
+                        ) : (
+                          <span className="text-amber-600 font-medium">Sắp diễn ra</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button 
+                          size="sm"
+                          onClick={() => handleViewTest(session.sessionId)}
+                          disabled={!isAvailable}
+                        >
+                          {isAvailable ? 'Vào làm bài' : 'Chưa đến thời gian'}
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
       )}
     </div>
   );

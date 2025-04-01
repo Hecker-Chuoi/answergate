@@ -91,5 +91,10 @@ export const authService = {
       console.error('Lỗi lấy thông tin người dùng:', error);
       return null;
     }
+  },
+
+  logout: () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('currentUser');
   }
 };

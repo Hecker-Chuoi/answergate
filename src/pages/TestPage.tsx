@@ -1,231 +1,279 @@
 
-import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { useTest } from '@/context/TestContext';
-import QuestionCard from '@/components/QuestionCard';
-import TestTimer from '@/components/TestTimer';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { sessionService } from '@/services/sessionService';
+import { Question } from '@/services/testService';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { 
-  ChevronLeft, ChevronRight, AlertTriangle, 
-  ArrowLeft, X, Send
-} from 'lucide-react';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Loader2, Save, Send } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import TestQuestionList from '@/components/TestQuestionList';
+import TestNavigationSidebar from '@/components/TestNavigationSidebar';
+import ExamTimer from '@/components/ExamTimer';
 
 const TestPage = () => {
-  const navigate = useNavigate();
   const { sessionId } = useParams<{ sessionId: string }>();
-  const { 
-    currentTest, navigateToQuestion, endTest, 
-    isTimeUp, currentQuestion, answerQuestion
-  } = useTest();
-  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
-  const [studentName, setStudentName] = useState('Nguyễn Hữu Tiến');
-  
+  const navigate = useNavigate();
+  const [loading, setLoading] = useState<boolean>(true);
+  const [saving, setSaving] = useState<boolean>(false);
+  const [submitting, setSubmitting] = useState<boolean>(false);
+  const [submitDialogOpen, setSubmitDialogOpen] = useState<boolean>(false);
+  const [questions, setQuestions] = useState<Question[]>([]);
+  const [userAnswers, setUserAnswers] = useState<Record<number, string>>({});
+  const [markedQuestions, setMarkedQuestions] = useState<Set<number>>(new Set());
+  const [testInfo, setTestInfo] = useState<{ testName: string; subject: string }>({ testName: '', subject: '' });
+  const [endTime, setEndTime] = useState<Date | null>(null);
+
+  // Fetch questions and test info when component mounts
   useEffect(() => {
-    // Redirect to homepage if no test is in progress
-    if (!currentTest) {
-      navigate('/');
-    }
-    
-    // Get user info from session storage
-    const userStr = sessionStorage.getItem('currentUser');
-    if (userStr) {
+    const fetchTestData = async () => {
       try {
-        const user = JSON.parse(userStr);
-        if (user.username) {
-          setStudentName(user.fullName || user.username);
+        const token = localStorage.getItem('token');
+        if (!token) {
+          navigate('/login');
+          return;
         }
-      } catch (error) {
-        console.error('Error parsing user data:', error);
-      }
-    }
-  }, [currentTest, navigate]);
-  
-  if (!currentTest) {
-    return null;
-  }
-  
-  const handleEndTest = () => {
-    endTest();
-    navigate(`/results/${sessionId}`);
-  };
-  
-  const confirmEndTest = () => {
-    setShowConfirmDialog(true);
-  };
-  
-  const { totalQuestions, userAnswers } = currentTest;
-  const answeredCount = userAnswers.filter(a => a.selectedOptionId !== null).length;
-  const markedCount = userAnswers.filter(a => a.isMarked).length;
-  
-  return (
-    <div className="min-h-screen flex flex-col bg-slate-50">
-      {/* Header with test name and navigation */}
-      <header className="sticky top-0 z-10 bg-white shadow-sm border-b border-gray-200">
-        <div className="container mx-auto px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <Button variant="ghost" onClick={() => navigate(-1)} className="mr-2">
-              <ArrowLeft className="w-5 h-5" />
-              <span className="sr-only">Quay lại</span>
-            </Button>
-            <h1 className="text-lg font-medium truncate">
-              {currentTest.test.title} - {currentTest.test.description}
-            </h1>
-          </div>
-          
-          <div className="flex items-center space-x-4">
-            <TestTimer />
-            <Button 
-              onClick={confirmEndTest}
-              variant="default"
-              className="bg-blue-600 hover:bg-blue-700"
-            >
-              <Send className="w-4 h-4 mr-2" />
-              Nộp bài
-            </Button>
-          </div>
-        </div>
-      </header>
-      
-      {/* Main content area with sidebar and question list */}
-      <div className="flex flex-1 overflow-hidden">
-        {/* Question navigation sidebar */}
-        <aside className="w-64 border-r border-gray-200 bg-white hidden md:block">
-          <div className="p-4 border-b border-gray-200">
-            <h2 className="font-medium text-gray-700">Thí sinh: {studentName}</h2>
-            <div className="mt-2 grid grid-cols-3 gap-2 text-sm">
-              <div className="flex flex-col items-center">
-                <span className="text-lg font-semibold text-blue-600">{answeredCount}</span>
-                <span className="text-gray-500 text-xs">Đã trả lời</span>
-              </div>
-              <div className="flex flex-col items-center">
-                <span className="text-lg font-semibold text-amber-500">{markedCount}</span>
-                <span className="text-gray-500 text-xs">Đánh dấu</span>
-              </div>
-              <div className="flex flex-col items-center">
-                <span className="text-lg font-semibold text-gray-600">{totalQuestions - answeredCount}</span>
-                <span className="text-gray-500 text-xs">Còn lại</span>
-              </div>
-            </div>
-          </div>
-          
-          <ScrollArea className="h-[calc(100vh-10rem)]">
-            <div className="p-4">
-              <h3 className="font-medium mb-3 text-gray-700">Danh sách câu hỏi</h3>
-              <div className="grid grid-cols-4 gap-2">
-                {currentTest.userAnswers.map((answer, index) => {
-                  const isAnswered = answer.selectedOptionId !== null;
-                  const isMarked = answer.isMarked;
-                  const isCurrent = currentQuestion?.id === currentTest.test.questions[index].id;
-                  
-                  return (
-                    <Button
-                      key={index}
-                      size="sm"
-                      variant={isCurrent ? "default" : isAnswered ? "outline" : "ghost"} 
-                      className={`relative p-0 h-10 w-10 ${
-                        isCurrent ? 'bg-blue-600' : isAnswered ? 'border-blue-300 text-blue-600' : ''
-                      } ${isMarked ? 'ring-2 ring-amber-400' : ''}`}
-                      onClick={() => navigateToQuestion(index)}
-                    >
-                      <span>{index + 1}</span>
-                      {isMarked && (
-                        <div className="absolute -top-1 -right-1 w-2 h-2 bg-amber-400 rounded-full" />
-                      )}
-                    </Button>
-                  );
-                })}
-              </div>
-            </div>
-          </ScrollArea>
-        </aside>
+
+        // Get test questions
+        const questionsData = await sessionService.getTestQuestions(token, Number(sessionId));
+        setQuestions(questionsData);
+
+        // Get test information
+        const testData = await sessionService.getTakingTest(token, Number(sessionId));
+        setTestInfo({
+          testName: testData.testName,
+          subject: testData.subject
+        });
+
+        // Get session info to calculate end time
+        const sessionData = await sessionService.getSession(token, Number(sessionId));
+        const timeLimit = sessionData.timeLimit;
         
-        {/* Question display area */}
-        <main className="flex-1 overflow-auto">
-          <ScrollArea className="h-[calc(100vh-4rem)]">
-            <div className="container mx-auto px-4 py-6 max-w-4xl space-y-8">
-              {currentTest.test.questions.map((question, index) => (
-                <QuestionCard 
-                  key={question.id}
-                  questionNumber={index + 1} 
-                  question={question}
-                  userAnswer={currentTest.userAnswers.find(a => a.questionId === question.id)}
-                  onSelectOption={(optionId) => answerQuestion(question.id, optionId)}
-                />
-              ))}
-              
-              <div className="flex justify-center py-6">
-                <Button 
-                  onClick={confirmEndTest}
-                  size="lg"
-                  className="bg-blue-600 hover:bg-blue-700"
-                >
-                  <Send className="w-4 h-4 mr-2" />
-                  Nộp bài
-                </Button>
-              </div>
-            </div>
-          </ScrollArea>
-        </main>
+        // Parse the time limit (PT2H30M format)
+        let hours = 0;
+        let minutes = 0;
+        
+        const hoursMatch = timeLimit.match(/(\d+)H/);
+        if (hoursMatch) {
+          hours = parseInt(hoursMatch[1], 10);
+        }
+        
+        const minutesMatch = timeLimit.match(/(\d+)M/);
+        if (minutesMatch) {
+          minutes = parseInt(minutesMatch[1], 10);
+        }
+        
+        const totalMinutes = hours * 60 + minutes;
+        
+        // Calculate end time
+        const end = new Date();
+        end.setMinutes(end.getMinutes() + totalMinutes);
+        setEndTime(end);
+
+        setLoading(false);
+      } catch (error) {
+        console.error('Error fetching test data:', error);
+        toast.error('Không thể tải dữ liệu bài thi');
+        navigate('/student-home');
+      }
+    };
+
+    fetchTestData();
+  }, [sessionId, navigate]);
+
+  const handleAnswerChange = (questionId: number, answer: string) => {
+    setUserAnswers(prev => ({
+      ...prev,
+      [questionId]: answer
+    }));
+  };
+
+  const handleMarkQuestion = (questionId: number) => {
+    setMarkedQuestions(prev => {
+      const newMarked = new Set(prev);
+      if (newMarked.has(questionId)) {
+        newMarked.delete(questionId);
+      } else {
+        newMarked.add(questionId);
+      }
+      return newMarked;
+    });
+  };
+
+  const navigateToQuestion = (questionId: number) => {
+    const element = document.getElementById(`question-${questionId}`);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
+  const convertToCandidateAnswerRequests = () => {
+    return Object.entries(userAnswers).map(([questionId, answer]) => ({
+      questionId: parseInt(questionId, 10),
+      answerChosen: answer
+    }));
+  };
+
+  const saveProgress = async () => {
+    if (saving) return;
+    
+    try {
+      setSaving(true);
+      const token = localStorage.getItem('token');
+      if (!token) {
+        navigate('/login');
+        return;
+      }
+      
+      const answers = convertToCandidateAnswerRequests();
+      await sessionService.saveAnswers(token, Number(sessionId), answers);
+      toast.success('Đã lưu tiến trình làm bài');
+    } catch (error) {
+      console.error('Error saving progress:', error);
+      toast.error('Không thể lưu tiến trình làm bài');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSubmit = async () => {
+    if (submitting) return;
+    
+    try {
+      setSubmitting(true);
+      
+      // First save progress
+      await saveProgress();
+      
+      // Then submit test
+      const token = localStorage.getItem('token');
+      if (!token) {
+        navigate('/login');
+        return;
+      }
+      
+      await sessionService.submitTest(token, Number(sessionId));
+      
+      toast.success('Nộp bài thành công');
+      navigate('/student-home');
+    } catch (error) {
+      console.error('Error submitting test:', error);
+      toast.error('Không thể nộp bài');
+      setSubmitting(false);
+    }
+  };
+
+  const handleTimeUp = async () => {
+    toast.warning('Hết thời gian làm bài!');
+    
+    try {
+      // First save progress
+      const token = localStorage.getItem('token');
+      if (!token) {
+        navigate('/login');
+        return;
+      }
+      
+      const answers = convertToCandidateAnswerRequests();
+      await sessionService.saveAnswers(token, Number(sessionId), answers);
+      
+      // Then submit test
+      await sessionService.submitTest(token, Number(sessionId));
+      
+      toast.success('Bài thi đã được nộp tự động');
+      navigate('/student-home');
+    } catch (error) {
+      console.error('Error with auto-submit:', error);
+      toast.error('Có lỗi khi nộp bài tự động');
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <Loader2 className="animate-spin h-8 w-8 mr-2" />
+        <span>Đang tải bài thi...</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex h-screen">
+      {/* Question Navigation Sidebar */}
+      <TestNavigationSidebar
+        questions={questions}
+        userAnswers={userAnswers}
+        markedQuestions={markedQuestions}
+        onNavigateToQuestion={navigateToQuestion}
+      />
+
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col h-full overflow-hidden">
+        {/* Question List */}
+        <TestQuestionList
+          questions={questions}
+          userAnswers={userAnswers}
+          markedQuestions={markedQuestions}
+          onAnswerChange={handleAnswerChange}
+          onMarkQuestion={handleMarkQuestion}
+          currentTest={testInfo}
+        />
+
+        {/* Fixed Footer with Timer and Buttons */}
+        <div className="fixed bottom-0 left-0 right-0 bg-white border-t py-3 px-4 flex items-center justify-between shadow-lg">
+          <div className="flex items-center space-x-4">
+            <Button
+              variant="outline"
+              onClick={saveProgress}
+              disabled={saving}
+              className="flex items-center"
+            >
+              {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+              {saving ? 'Đang lưu...' : 'Lưu tiến trình'}
+            </Button>
+            <Button
+              onClick={() => setSubmitDialogOpen(true)}
+              disabled={submitting}
+              className="flex items-center"
+            >
+              {submitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
+              {submitting ? 'Đang nộp...' : 'Nộp bài'}
+            </Button>
+          </div>
+
+          {endTime && (
+            <ExamTimer
+              endTime={endTime}
+              onTimeUp={handleTimeUp}
+            />
+          )}
+        </div>
       </div>
 
-      {/* Confirmation dialog */}
-      <Dialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Nộp bài?</DialogTitle>
-            <DialogDescription>
-              Bạn có chắc chắn muốn nộp bài? Bạn sẽ không thể thay đổi câu trả lời sau khi nộp.
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="py-4">
-            <div className="flex items-start space-x-3 p-4 bg-amber-50 border border-amber-200 rounded-lg">
-              <AlertTriangle className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
-              <div>
-                <p className="text-sm font-medium text-amber-800">
-                  Bạn đã trả lời {answeredCount} trên tổng số {totalQuestions} câu hỏi.
-                </p>
-                {markedCount > 0 && (
-                  <p className="text-sm text-amber-700 mt-1">
-                    Bạn có {markedCount} câu hỏi đã đánh dấu.
-                  </p>
-                )}
-              </div>
-            </div>
-          </div>
-          
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowConfirmDialog(false)}>
-              <X className="w-4 h-4 mr-2" />
-              Tiếp tục làm bài
-            </Button>
-            <Button onClick={handleEndTest} className="bg-blue-600">
-              <Send className="w-4 h-4 mr-2" />
-              Nộp bài
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-      
-      {/* Time's up dialog */}
-      <Dialog open={isTimeUp}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Hết giờ!</DialogTitle>
-            <DialogDescription>
-              Thời gian làm bài của bạn đã kết thúc. Bài làm của bạn đã được nộp tự động.
-            </DialogDescription>
-          </DialogHeader>
-          
-          <DialogFooter>
-            <Button onClick={handleEndTest} className="bg-blue-600">
-              Xem kết quả
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Submit Confirmation Dialog */}
+      <AlertDialog open={submitDialogOpen} onOpenChange={setSubmitDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Xác nhận nộp bài</AlertDialogTitle>
+            <AlertDialogDescription>
+              Bạn có chắc chắn muốn nộp bài? Sau khi nộp bài, bạn sẽ không thể chỉnh sửa câu trả lời.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Hủy</AlertDialogCancel>
+            <AlertDialogAction onClick={handleSubmit}>Nộp bài</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

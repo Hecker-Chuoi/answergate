@@ -17,8 +17,8 @@ const LoginPage = () => {
 
   useEffect(() => {
     // Check if user is already logged in
-    const token = sessionStorage.getItem('authToken');
-    const userStr = sessionStorage.getItem('currentUser');
+    const token = localStorage.getItem('token');
+    const userStr = localStorage.getItem('currentUser');
     
     if (token && userStr) {
       try {
@@ -32,8 +32,8 @@ const LoginPage = () => {
       } catch (error) {
         console.error('Error parsing user data:', error);
         // Clear invalid data
-        sessionStorage.removeItem('authToken');
-        sessionStorage.removeItem('currentUser');
+        localStorage.removeItem('token');
+        localStorage.removeItem('currentUser');
       }
     }
   }, [navigate]);
@@ -54,13 +54,13 @@ const LoginPage = () => {
       if (response.statusCode === 0 && response.result?.authenticated) {
         // Login successful
         const token = response.result.token;
-        sessionStorage.setItem('authToken', token);
+        localStorage.setItem('token', token);
         
         // Get user info
         const userInfo = await authService.getUserInfo(token);
         
         if (userInfo) {
-          sessionStorage.setItem('currentUser', JSON.stringify(userInfo));
+          localStorage.setItem('currentUser', JSON.stringify(userInfo));
           toast.success('Đăng nhập thành công');
           
           // Redirect based on role

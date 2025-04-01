@@ -16,7 +16,7 @@ const RequireAuth: React.FC<RequireAuthProps> = ({ children, allowedRoles }) => 
 
   useEffect(() => {
     const validateAuth = async () => {
-      const token = sessionStorage.getItem('authToken');
+      const token = localStorage.getItem('token');
       
       if (!token) {
         setIsAuthenticated(false);
@@ -36,18 +36,18 @@ const RequireAuth: React.FC<RequireAuthProps> = ({ children, allowedRoles }) => 
             setUserRole(userInfo.role);
             setIsAuthenticated(true);
             
-            // Update user info in sessionStorage
-            sessionStorage.setItem('currentUser', JSON.stringify(userInfo));
+            // Store user info in localStorage
+            localStorage.setItem('currentUser', JSON.stringify(userInfo));
           } else {
             // Token is valid but can't get user info
-            sessionStorage.removeItem('authToken');
-            sessionStorage.removeItem('currentUser');
+            localStorage.removeItem('token');
+            localStorage.removeItem('currentUser');
             setIsAuthenticated(false);
           }
         } else {
           // Token is invalid, logout user
-          sessionStorage.removeItem('authToken');
-          sessionStorage.removeItem('currentUser');
+          localStorage.removeItem('token');
+          localStorage.removeItem('currentUser');
           setIsAuthenticated(false);
         }
       } catch (error) {
