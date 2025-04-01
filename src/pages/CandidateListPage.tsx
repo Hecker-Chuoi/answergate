@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { userService, User, UserCreationRequest } from '@/services/userService';
+import { userService, User, UserResponse, UserCreationRequest } from '@/services/userService';
 import { sessionService } from '@/services/sessionService';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
@@ -39,9 +39,16 @@ const CandidateListPage = () => {
         const fetchedCandidates = await sessionService.getCandidates(token, Number(sessionId));
         setCandidates(fetchedCandidates);
         
-        // Also fetch all users for selection
+        // Also fetch all users for selection and transform UserResponse to User
         const allUsers = await userService.getAllUsers(token);
-        setAvailableUsers(allUsers);
+        const transformedUsers: User[] = allUsers.map(user => ({
+          userId: user.userId,
+          username: user.username,
+          fullName: user.fullName || '',
+          type: user.type || 'Không xác định',
+          role: user.role
+        }));
+        setAvailableUsers(transformedUsers);
       } catch (error) {
         console.error('Error fetching candidates:', error);
         toast.error('Không thể tải danh sách thí sinh');

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { userService, User, UserCreationRequest, UserUpdateRequest } from '@/services/userService';
+import { userService, User, UserCreationRequest, UserUpdateRequest, UserResponse } from '@/services/userService';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { Plus, Edit, Trash2, Search, User as UserIcon, Eye } from 'lucide-react';
@@ -58,7 +58,19 @@ const UserManagementPage = () => {
     try {
       setLoading(true);
       const fetchedUsers = await userService.getAllUsers(token);
-      setUsers(fetchedUsers);
+      const transformedUsers: User[] = fetchedUsers.map(user => ({
+        userId: user.userId,
+        username: user.username,
+        fullName: user.fullName || '',
+        dob: user.dob,
+        gender: user.gender,
+        phoneNumber: user.phoneNumber,
+        mail: user.mail,
+        hometown: user.hometown,
+        role: user.role,
+        type: user.type || 'Không xác định'
+      }));
+      setUsers(transformedUsers);
     } catch (error) {
       console.error('Error fetching users:', error);
       toast.error('Không thể tải danh sách người dùng');
@@ -71,7 +83,19 @@ const UserManagementPage = () => {
     setIsCreating(true);
     try {
       const createdUser = await userService.createUser(token, userForm);
-      setUsers(prev => [...prev, createdUser]);
+      const newUser: User = {
+        userId: createdUser.userId,
+        username: createdUser.username,
+        fullName: createdUser.fullName || '',
+        dob: createdUser.dob,
+        gender: createdUser.gender,
+        phoneNumber: createdUser.phoneNumber,
+        mail: createdUser.mail,
+        hometown: createdUser.hometown,
+        role: createdUser.role,
+        type: createdUser.type || 'Không xác định'
+      };
+      setUsers(prev => [...prev, newUser]);
       toast.success('Tạo người dùng thành công');
       setShowCreateDialog(false);
       resetUserForm();
@@ -87,10 +111,21 @@ const UserManagementPage = () => {
     setIsUpdating(true);
     try {
       const updatedUser = await userService.updateUser(token, username, userData);
-      setUsers(prev => prev.map(user => user.username === username ? updatedUser : user));
+      const transformedUser: User = {
+        userId: updatedUser.userId,
+        username: updatedUser.username,
+        fullName: updatedUser.fullName || '',
+        dob: updatedUser.dob,
+        gender: updatedUser.gender,
+        phoneNumber: updatedUser.phoneNumber,
+        mail: updatedUser.mail,
+        hometown: updatedUser.hometown,
+        role: updatedUser.role,
+        type: updatedUser.type || 'Không xác định'
+      };
+      setUsers(prev => prev.map(user => user.username === username ? transformedUser : user));
       toast.success('Cập nhật người dùng thành công');
       setShowEditDialog(false);
-      fetchUsers();
     } catch (error) {
       console.error('Error updating user:', error);
       toast.error('Không thể cập nhật người dùng');
