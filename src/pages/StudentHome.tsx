@@ -1,11 +1,11 @@
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Calendar, Clock, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { userService } from '@/services/userService';
-import { sessionService, SessionResponse } from '@/services/sessionService';
+import { SessionResponse } from '@/services/sessionService';
+import { takingTestService } from '@/services/takingTestService';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -45,7 +45,8 @@ const StudentHome = () => {
         const token = localStorage.getItem('token');
         if (!token) return;
         
-        const sessions = await userService.getUpcomingSession(token);
+        // Use the new takingTestService instead of userService
+        const sessions = await takingTestService.getUpcomingSessions(token);
         setUpcomingSessions(sessions);
       } catch (error) {
         console.error('Error fetching upcoming sessions:', error);
@@ -86,8 +87,8 @@ const StudentHome = () => {
         return;
       }
       
-      // Check if the test is available
-      await sessionService.getTakingTest(token, sessionId);
+      // Use the correct API from takingTestService
+      await takingTestService.getTest(token, sessionId);
       
       // If successful, navigate to the test confirmation page
       navigate(`/test-confirmation/${sessionId}`);

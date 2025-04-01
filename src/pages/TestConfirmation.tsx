@@ -2,11 +2,12 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { sessionService } from '@/services/sessionService';
+import { takingTestService } from '@/services/takingTestService';
 import { toast } from 'sonner';
 import { Test } from '@/services/testService';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { CheckCircle2, Loader2, Clock, FileText, Calendar as CalendarIcon } from 'lucide-react';
+import { CheckCircle2, Loader2, Clock, FileText, CalendarIcon } from 'lucide-react';
 import { format, differenceInSeconds } from 'date-fns';
 
 const TestConfirmation = () => {
@@ -27,8 +28,8 @@ const TestConfirmation = () => {
           return;
         }
         
-        // Get test information for this session
-        const testData = await sessionService.getTakingTest(token, Number(sessionId));
+        // Get test information for this session using takingTestService
+        const testData = await takingTestService.getTest(token, Number(sessionId));
         setTest(testData);
         
         // Get session information to know startTime and timeLimit
@@ -84,8 +85,8 @@ const TestConfirmation = () => {
         return;
       }
       
-      // Call the API to start the test
-      await sessionService.startTest(token, Number(sessionId));
+      // Call the API to start the test using takingTestService
+      await takingTestService.startTest(token, Number(sessionId));
       
       // Navigate to the test page
       navigate(`/test/${sessionId}`);

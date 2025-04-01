@@ -29,20 +29,38 @@ const RequireAuth: React.FC<RequireAuthProps> = ({ children, allowedRoles }) => 
         const isValid = await authService.validateToken(token);
         
         if (isValid) {
-          // Get user info
-          const userInfo = await authService.getUserInfo(token);
+          // Get user info from localStorage first
+          const storedUserInfo = localStorage.getItem('currentUser');
+          let userInfo;
           
-          if (userInfo) {
-            setUserRole(userInfo.role);
-            setIsAuthenticated(true);
+          if (storedUserInfo) {
+            try {
+              userInfo = JSON.parse(storedUserInfo);
+              setUserRole(userInfo.role);
+              setIsAuthenticated(true);
+            } catch (error) {
+              console.error('Error parsing stored user info:', error);
+              // Invalid stored user info, fetch fresh data
+              userInfo = null;
+            }
+          }
+          
+          // If no valid user info in localStorage, fetch it
+          if (!userInfo) {
+            userInfo = await authService.getUserInfo(token);
             
-            // Store user info in localStorage
-            localStorage.setItem('currentUser', JSON.stringify(userInfo));
-          } else {
-            // Token is valid but can't get user info
-            localStorage.removeItem('token');
-            localStorage.removeItem('currentUser');
-            setIsAuthenticated(false);
+            if (userInfo) {
+              setUserRole(userInfo.role);
+              setIsAuthenticated(true);
+              
+              // Store user info in localStorage
+              localStorage.setItem('currentUser', JSON.stringify(userInfo));
+            } else {
+              // Token is valid but can't get user info
+              localStorage.removeItem('token');
+              localStorage.removeItem('currentUser');
+              setIsAuthenticated(false);
+            }
           }
         } else {
           // Token is invalid, logout user
@@ -78,7 +96,7 @@ const RequireAuth: React.FC<RequireAuthProps> = ({ children, allowedRoles }) => 
     // Map backend roles to frontend roles
     if (userRole === 'ADMIN' && (role === 'admin' || role === 'ADMIN')) return true;
     if (userRole === 'USER' && (role === 'user' || role === 'USER')) return true;
-    return role === userRole;
+    return false; // Don't accept any other roles unless explicitly matched above
   });
 
   if (hasRequiredRole) {

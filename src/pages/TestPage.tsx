@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { sessionService } from '@/services/sessionService';
+import { takingTestService } from '@/services/takingTestService';
 import { Question } from '@/services/testService';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -43,12 +44,12 @@ const TestPage = () => {
           return;
         }
 
-        // Get test questions
-        const questionsData = await sessionService.getTestQuestions(token, Number(sessionId));
+        // Get test questions using takingTestService
+        const questionsData = await takingTestService.getQuestions(token, Number(sessionId));
         setQuestions(questionsData);
 
-        // Get test information
-        const testData = await sessionService.getTakingTest(token, Number(sessionId));
+        // Get test information using takingTestService
+        const testData = await takingTestService.getTest(token, Number(sessionId));
         setTestInfo({
           testName: testData.testName,
           subject: testData.subject
@@ -135,7 +136,7 @@ const TestPage = () => {
       }
       
       const answers = convertToCandidateAnswerRequests();
-      await sessionService.saveAnswers(token, Number(sessionId), answers);
+      await takingTestService.saveAnswers(token, Number(sessionId), answers);
       toast.success('Đã lưu tiến trình làm bài');
     } catch (error) {
       console.error('Error saving progress:', error);
@@ -154,14 +155,14 @@ const TestPage = () => {
       // First save progress
       await saveProgress();
       
-      // Then submit test
+      // Then submit test using takingTestService
       const token = localStorage.getItem('token');
       if (!token) {
         navigate('/login');
         return;
       }
       
-      await sessionService.submitTest(token, Number(sessionId));
+      await takingTestService.submitTest(token, Number(sessionId));
       
       toast.success('Nộp bài thành công');
       navigate('/student-home');
@@ -184,10 +185,10 @@ const TestPage = () => {
       }
       
       const answers = convertToCandidateAnswerRequests();
-      await sessionService.saveAnswers(token, Number(sessionId), answers);
+      await takingTestService.saveAnswers(token, Number(sessionId), answers);
       
-      // Then submit test
-      await sessionService.submitTest(token, Number(sessionId));
+      // Then submit test using takingTestService
+      await takingTestService.submitTest(token, Number(sessionId));
       
       toast.success('Bài thi đã được nộp tự động');
       navigate('/student-home');
