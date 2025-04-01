@@ -13,6 +13,7 @@ const LoginPage = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [checkingAuth, setCheckingAuth] = useState(true);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -23,18 +24,32 @@ const LoginPage = () => {
     if (token && userStr) {
       try {
         const user = JSON.parse(userStr);
-        // Redirect based on role
-        if (user.role === 'ADMIN') {
-          navigate('/admin-home');
-        } else {
-          navigate('/student-home');
-        }
+        
+        // Validate token before redirecting
+        authService.validateToken(token).then(isValid => {
+          if (isValid) {
+            // Redirect based on role
+            if (user.role === 'ADMIN') {
+              navigate('/admin-home');
+            } else if (user.role === 'USER') {
+              navigate('/student-home');
+            }
+          } else {
+            // Token is invalid, clear local storage
+            localStorage.removeItem('token');
+            localStorage.removeItem('currentUser');
+          }
+          setCheckingAuth(false);
+        });
       } catch (error) {
         console.error('Error parsing user data:', error);
         // Clear invalid data
         localStorage.removeItem('token');
         localStorage.removeItem('currentUser');
+        setCheckingAuth(false);
       }
+    } else {
+      setCheckingAuth(false);
     }
   }, [navigate]);
 
@@ -71,6 +86,7 @@ const LoginPage = () => {
           }
         } else {
           toast.error('Không thể lấy thông tin người dùng');
+          localStorage.removeItem('token');
         }
       } else {
         // Login failed
@@ -83,6 +99,14 @@ const LoginPage = () => {
       setLoading(false);
     }
   };
+
+  if (checkingAuth) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-100 p-4">

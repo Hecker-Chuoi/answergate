@@ -3,8 +3,9 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { LogOut, Users, BookOpen, ClipboardList, ArrowRight } from 'lucide-react';
+import { Users, BookOpen, ClipboardList, ArrowRight } from 'lucide-react';
 import { toast } from 'sonner';
+import AdminLogoutButton from '@/components/AdminLogoutButton';
 
 interface MenuItem {
   title: string;
@@ -18,35 +19,20 @@ const AdminHome = () => {
   const [user, setUser] = useState<any>(null);
   
   useEffect(() => {
-    // Check if user is authenticated and has ADMIN role
-    const userStr = sessionStorage.getItem('currentUser');
-    const token = sessionStorage.getItem('authToken');
+    // Check for user from localStorage instead of sessionStorage
+    const userStr = localStorage.getItem('currentUser');
     
-    if (!userStr || !token) {
-      navigate('/login');
+    if (!userStr) {
       return;
     }
 
     try {
       const userData = JSON.parse(userStr);
-      if (userData.role !== 'ADMIN') {
-        navigate('/login');
-        return;
-      }
-      
       setUser(userData);
     } catch (error) {
       console.error('Error parsing user data:', error);
-      navigate('/login');
     }
   }, [navigate]);
-
-  const handleLogout = () => {
-    sessionStorage.removeItem('currentUser');
-    sessionStorage.removeItem('authToken');
-    toast.success('Đăng xuất thành công');
-    navigate('/login');
-  };
 
   const menuItems: MenuItem[] = [
     {
@@ -80,10 +66,7 @@ const AdminHome = () => {
                 Xin chào, <span className="font-semibold">{user.fullName || user.username}</span>
               </span>
             )}
-            <Button variant="outline" onClick={handleLogout} className="flex items-center gap-2 bg-white text-blue-700 hover:bg-gray-100">
-              <LogOut className="h-4 w-4" />
-              Đăng xuất
-            </Button>
+            <AdminLogoutButton />
           </div>
         </div>
       </header>

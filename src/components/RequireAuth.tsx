@@ -93,10 +93,10 @@ const RequireAuth: React.FC<RequireAuthProps> = ({ children, allowedRoles }) => 
 
   // Check if user has allowed role
   const hasRequiredRole = allowedRoles.some(role => {
-    // Map backend roles to frontend roles
-    if (userRole === 'ADMIN' && (role === 'admin' || role === 'ADMIN')) return true;
-    if (userRole === 'USER' && (role === 'user' || role === 'USER')) return true;
-    return false; // Don't accept any other roles unless explicitly matched above
+    // Compare roles case-insensitively to avoid matching issues
+    if (userRole === 'ADMIN' && (role.toUpperCase() === 'ADMIN')) return true;
+    if (userRole === 'USER' && (role.toUpperCase() === 'USER')) return true;
+    return false; 
   });
 
   if (hasRequiredRole) {
