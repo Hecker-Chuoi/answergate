@@ -34,8 +34,8 @@ const TestConfirmation = () => {
         setTest(testData);
         
         // Get session information to know startTime and timeLimit
-        const session = await sessionService.getSession(token, Number(sessionId));
-        setSessionData(session);
+        const session = await takingTestService.getSession(token, Number(sessionId));
+        setSessionData(session);  
         
         // Calculate time difference to start
         const startTime = new Date(session.startTime);
