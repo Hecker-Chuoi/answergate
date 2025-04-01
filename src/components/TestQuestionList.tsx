@@ -1,7 +1,8 @@
+
 import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Question } from '@/services/testService';
-import { CheckCircle2, BookmarkIcon } from 'lucide-react';
+import { CheckCircle2, BookmarkIcon, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
@@ -98,12 +99,16 @@ const TestQuestionList: React.FC<TestQuestionListProps> = ({
                     >
                       <div className={cn(
                         "mr-3 flex-shrink-0 h-5 w-5 flex items-center justify-center border",
-                        question.questionType === 'SINGLE_CHOICE' ? "rounded-full" : "rounded-sm",
+                        question.questionType === 'SINGLE_CHOICE' ? "rounded-full" : "rounded-md",
                         isAnswerSelected(question.questionId, aIndex) 
                           ? "border-blue-500 bg-blue-500 text-white" 
                           : "border-gray-300"
                       )}>
-                        {isAnswerSelected(question.questionId, aIndex) && <CheckCircle2 className="h-4 w-4 text-white" />}
+                        {isAnswerSelected(question.questionId, aIndex) && 
+                          <Check className={cn("h-3.5 w-3.5 text-white",
+                            question.questionType === 'SINGLE_CHOICE' ? "scale-90" : ""
+                          )} />
+                        }
                       </div>
                       <span>{answer.answerText}</span>
                     </div>

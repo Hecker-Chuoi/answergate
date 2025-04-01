@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import { userService, User, UserCreationRequest, UserUpdateRequest, UserResponse } from '@/services/userService';
+import React, { useState, useEffect, useRef } from 'react';
+import { userService, User, UserCreationRequest, UserUpdateRequest } from '@/services/userService';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
-import { Plus, Edit, Trash2, Search, User as UserIcon, Eye } from 'lucide-react';
+import { Plus, Edit, Trash2, Search, User as UserIcon, Eye, Upload } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -37,7 +37,9 @@ const UserManagementPage = () => {
   const [isCreating, setIsCreating] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [userForm, setUserForm] = useState<UserCreationRequest>({
     fullName: '',
     gender: 'MALE',
@@ -159,6 +161,47 @@ const UserManagementPage = () => {
     });
   };
 
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    try {
+      setIsUploading(true);
+
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const response = await fetch('http://localhost:8080/exam/user/many', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        body: formData
+      });
+      
+      const data = await response.json();
+
+      if (data.statusCode === 0) {
+        toast.success(`Đã tải lên ${file.name} thành công`);
+        fetchUsers();
+      } else {
+        toast.error(`Lỗi khi tải lên: ${data.message}`);
+      }
+    } catch (error) {
+      console.error('Error uploading file:', error);
+      toast.error('Không thể tải lên file');
+    } finally {
+      setIsUploading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleUploadClick = () => {
+    fileInputRef.current?.click();
+  };
+
   const filteredUsers = users.filter(user =>
     user.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
     user.username.toLowerCase().includes(searchTerm.toLowerCase())
@@ -182,10 +225,23 @@ const UserManagementPage = () => {
     <div className="container mx-auto py-6">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">Quản lý người dùng</h1>
-        <Button onClick={() => setShowCreateDialog(true)}>
-          <Plus className="h-4 w-4 mr-2" />
-          Thêm người dùng
-        </Button>
+        <div className="flex space-x-2">
+          <Button onClick={() => setShowCreateDialog(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Thêm người dùng
+          </Button>
+          <Button variant="outline" onClick={handleUploadClick}>
+            <Upload className="h-4 w-4 mr-2" />
+            Tải lên
+          </Button>
+          <input 
+            type="file" 
+            ref={fileInputRef}
+            className="hidden" 
+            accept=".csv,.xlsx,.xls"
+            onChange={handleFileUpload} 
+          />
+        </div>
       </div>
 
       <div className="flex items-center space-x-2 mb-4">

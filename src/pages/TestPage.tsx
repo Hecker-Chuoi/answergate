@@ -1,7 +1,5 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { sessionService } from '@/services/sessionService';
 import { takingTestService } from '@/services/takingTestService';
 import { Question } from '@/services/testService';
 import { toast } from 'sonner';
@@ -35,18 +33,14 @@ const TestPage = () => {
   const [endTime, setEndTime] = useState<Date | null>(null);
 
   const calculateEndTimeAndRemaining = (startTimeStr: string, timeLimit: string) => {
-    // Chuyển đổi startTime từ chuỗi "dd/MM/yyyy HH:mm" thành đối tượng Date
     const [datePart, timePart] = startTimeStr.split(' ');
     const [day, month, year] = datePart.split('/').map(Number);
     const [hour, minute] = timePart.split(':').map(Number);
   
-    const startDate = new Date(year, month - 1, day, hour, minute); // Tháng bắt đầu từ 0
-  
-    // Cộng thêm timeLimit (đơn vị phút)
+    const startDate = new Date(year, month - 1, day, hour, minute);
     const endDate = new Date(startDate);
     endDate.setMinutes(endDate.getMinutes() + Number(timeLimit));
   
-    // Tính thời gian còn lại từ hiện tại đến endTime
     const now = new Date();
     const remainingTimeMs = endDate.getTime() - now.getTime();
     
@@ -66,7 +60,6 @@ const TestPage = () => {
     };
   };
 
-  // Fetch questions and test info when component mounts
   useEffect(() => {
     const fetchTestData = async () => {
       try {
@@ -76,18 +69,15 @@ const TestPage = () => {
           return;
         }
 
-        // Get test questions using takingTestService
         const questionsData = await takingTestService.getQuestions(token, Number(sessionId));
         setQuestions(questionsData);
 
-        // Get test information using takingTestService
         const testData = await takingTestService.getTest(token, Number(sessionId));
         setTestInfo({
           testName: testData.testName,
           subject: testData.subject
         });
 
-        // Get session info to calculate end time
         const sessionData = await takingTestService.getSession(token, Number(sessionId));
         const timeLimit = sessionData.timeLimit;
         
@@ -105,30 +95,11 @@ const TestPage = () => {
     fetchTestData();
   }, [sessionId, navigate]);
 
-  const handleAnswerChange = (questionId: number, answerIndex: number, questionType: 'single_choice' | 'multiple_choice', totalAnswers: number) => {
-    setUserAnswers(prev => {
-      if (questionType === 'single_choice') {
-        // Với single_choice, chỉ cho phép chọn một đáp án (chỉ có 1 ký tự '1')
-        let newAnswer = '0'.repeat(totalAnswers).split('');
-        newAnswer[answerIndex] = '1';
-        return {
-          ...prev,
-          [questionId]: newAnswer.join('')
-        };
-      } else {
-        // Với multiple_choice, cho phép bật/tắt đáp án
-        let currentAnswer = prev[questionId] || '0'.repeat(totalAnswers);
-        let newAnswer =
-          currentAnswer.substring(0, answerIndex) +
-          (currentAnswer[answerIndex] === '1' ? '0' : '1') +
-          currentAnswer.substring(answerIndex + 1);
-  
-        return {
-          ...prev,
-          [questionId]: newAnswer
-        };
-      }
-    });
+  const handleAnswerChange = (questionId: number, answer: string) => {
+    setUserAnswers(prev => ({
+      ...prev,
+      [questionId]: answer
+    }));
   };
 
   const handleMarkQuestion = (questionId: number) => {
@@ -168,10 +139,7 @@ const TestPage = () => {
         return;
       }
   
-      const answers = Object.entries(userAnswers).map(([questionId, answerChosen]) => ({
-        questionId: parseInt(questionId, 10),
-        answerChosen
-      }));
+      const answers = convertToCandidateAnswerRequests();
   
       const response = await takingTestService.saveAnswers(token, Number(sessionId), answers);
   
@@ -194,7 +162,6 @@ const TestPage = () => {
     try {
       setSubmitting(true);
   
-      // Lưu tiến trình trước khi nộp bài
       await saveProgress();
   
       const token = localStorage.getItem('token');
@@ -224,7 +191,6 @@ const TestPage = () => {
     toast.warning('Hết thời gian làm bài!');
     
     try {
-      // First save progress
       const token = localStorage.getItem('token');
       if (!token) {
         navigate('/login');
@@ -234,7 +200,6 @@ const TestPage = () => {
       const answers = convertToCandidateAnswerRequests();
       await takingTestService.saveAnswers(token, Number(sessionId), answers);
       
-      // Then submit test using takingTestService
       await takingTestService.submitTest(token, Number(sessionId));
       
       toast.success('Bài thi đã được nộp tự động');
@@ -256,7 +221,6 @@ const TestPage = () => {
 
   return (
     <div className="flex h-screen">
-      {/* Question Navigation Sidebar */}
       <TestNavigationSidebar
         questions={questions}
         userAnswers={userAnswers}
@@ -264,9 +228,7 @@ const TestPage = () => {
         onNavigateToQuestion={navigateToQuestion}
       />
 
-      {/* Main Content */}
       <div className="flex-1 flex flex-col h-full overflow-hidden">
-        {/* Question List */}
         <TestQuestionList
           questions={questions}
           userAnswers={userAnswers}
@@ -276,7 +238,6 @@ const TestPage = () => {
           currentTest={testInfo}
         />
 
-        {/* Fixed Footer with Timer and Buttons */}
         <div className="fixed bottom-0 left-0 right-0 bg-white border-t py-3 px-4 flex items-center justify-between shadow-lg">
           <div className="flex items-center space-x-4">
             <Button
@@ -307,7 +268,6 @@ const TestPage = () => {
         </div>
       </div>
 
-      {/* Submit Confirmation Dialog */}
       <AlertDialog open={submitDialogOpen} onOpenChange={setSubmitDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
