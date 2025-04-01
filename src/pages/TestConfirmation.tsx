@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { CheckCircle2, Loader2, Clock, FileText, CalendarIcon } from 'lucide-react';
 import { format, differenceInSeconds } from 'date-fns';
+import LogoutButton from '@/components/LogoutButton';
 
 const TestConfirmation = () => {
   const { sessionId } = useParams<{ sessionId: string }>();
@@ -154,6 +155,9 @@ const TestConfirmation = () => {
 
   return (
     <div className="container mx-auto py-10">
+      <div className="flex justify-end mb-4">
+        <LogoutButton />
+      </div>
       <Card className="max-w-2xl mx-auto">
         <CardHeader className="flex flex-col items-center space-y-2 pb-2">
           <CheckCircle2 className="h-12 w-12 text-green-500" />

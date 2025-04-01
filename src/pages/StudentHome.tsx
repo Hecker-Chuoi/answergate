@@ -9,6 +9,7 @@ import { takingTestService } from '@/services/takingTestService';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import LogoutButton from '@/components/LogoutButton';
 
 const StudentHome = () => {
   const navigate = useNavigate();
@@ -45,7 +46,7 @@ const StudentHome = () => {
         const token = localStorage.getItem('token');
         if (!token) return;
         
-        // Use the new takingTestService instead of userService
+        // Use the takingTestService to fetch upcoming sessions
         const sessions = await takingTestService.getUpcomingSessions(token);
         setUpcomingSessions(sessions);
       } catch (error) {
@@ -87,7 +88,7 @@ const StudentHome = () => {
         return;
       }
       
-      // Use the correct API from takingTestService
+      // Use the takingTestService API to get test information
       await takingTestService.getTest(token, sessionId);
       
       // If successful, navigate to the test confirmation page
@@ -108,7 +109,10 @@ const StudentHome = () => {
   
   return (
     <div className="container mx-auto py-8">
-      <h1 className="text-3xl font-bold mb-8">Bài kiểm tra sắp tới</h1>
+      <div className="flex justify-between items-center mb-8">
+        <h1 className="text-3xl font-bold">Bài kiểm tra sắp tới</h1>
+        <LogoutButton />
+      </div>
       
       {upcomingSessions.length === 0 ? (
         <div className="text-center py-16 border rounded-lg bg-gray-50">
