@@ -37,7 +37,20 @@ const CandidateListPage = () => {
     const fetchCandidates = async () => {
       try {
         const fetchedCandidates = await sessionService.getCandidates(token, Number(sessionId));
-        setCandidates(fetchedCandidates);
+        // Transform UserResponse[] to User[]
+        const transformedCandidates: User[] = fetchedCandidates.map(user => ({
+          userId: user.userId,
+          username: user.username,
+          fullName: user.fullName || '',
+          dob: user.dob,
+          gender: user.gender,
+          phoneNumber: user.phoneNumber,
+          mail: user.mail,
+          hometown: user.hometown,
+          role: user.role,
+          type: user.type || 'Không xác định'
+        }));
+        setCandidates(transformedCandidates);
         
         // Also fetch all users for selection and transform UserResponse to User
         const allUsers = await userService.getAllUsers(token);
@@ -45,8 +58,13 @@ const CandidateListPage = () => {
           userId: user.userId,
           username: user.username,
           fullName: user.fullName || '',
-          type: user.type || 'Không xác định',
-          role: user.role
+          dob: user.dob,
+          gender: user.gender,
+          phoneNumber: user.phoneNumber,
+          mail: user.mail,
+          hometown: user.hometown,
+          role: user.role,
+          type: user.type || 'Không xác định'
         }));
         setAvailableUsers(transformedUsers);
       } catch (error) {
@@ -70,8 +88,21 @@ const CandidateListPage = () => {
     try {
       await sessionService.assignCandidatesByUsernames(token, Number(sessionId), selectedUsernames);
       
-      const updatedCandidates = await sessionService.getCandidates(token, Number(sessionId));
-      setCandidates(updatedCandidates);
+      const updatedCandidateResponses = await sessionService.getCandidates(token, Number(sessionId));
+      // Transform UserResponse[] to User[]
+      const transformedCandidates: User[] = updatedCandidateResponses.map(user => ({
+        userId: user.userId,
+        username: user.username,
+        fullName: user.fullName || '',
+        dob: user.dob,
+        gender: user.gender,
+        phoneNumber: user.phoneNumber,
+        mail: user.mail,
+        hometown: user.hometown,
+        role: user.role,
+        type: user.type || 'Không xác định'
+      }));
+      setCandidates(transformedCandidates);
       
       toast.success('Thêm thí sinh thành công');
       setShowAddDialog(false);
@@ -94,8 +125,21 @@ const CandidateListPage = () => {
     try {
       await sessionService.assignCandidatesByTypes(token, Number(sessionId), selectedTypes);
       
-      const updatedCandidates = await sessionService.getCandidates(token, Number(sessionId));
-      setCandidates(updatedCandidates);
+      const updatedCandidateResponses = await sessionService.getCandidates(token, Number(sessionId));
+      // Transform UserResponse[] to User[]
+      const transformedCandidates: User[] = updatedCandidateResponses.map(user => ({
+        userId: user.userId,
+        username: user.username,
+        fullName: user.fullName || '',
+        dob: user.dob,
+        gender: user.gender,
+        phoneNumber: user.phoneNumber,
+        mail: user.mail,
+        hometown: user.hometown,
+        role: user.role,
+        type: user.type || 'Không xác định'
+      }));
+      setCandidates(transformedCandidates);
       
       toast.success('Thêm thí sinh thành công');
       setShowAddDialog(false);
