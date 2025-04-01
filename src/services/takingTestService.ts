@@ -64,6 +64,9 @@ export const takingTestService = {
         }
       });
       const data = await response.json();
+      if(data.statusCode !== 0){
+        throw new Error(`${data.statusCode}: ${data.message}`);
+      }
       return data.result;
     } catch (error) {
       console.error(`Error fetching questions for test ${sessionId}:`, error);
@@ -95,7 +98,7 @@ export const takingTestService = {
         }
       });
       const data = await response.json();
-      return data.result;
+      return data;
     } catch (error) {
       console.error(`Error starting test ${sessionId}:`, error);
       throw error;
@@ -113,7 +116,7 @@ export const takingTestService = {
         body: JSON.stringify(answers)
       });
       const data = await response.json();
-      return data.result;
+      return data;
     } catch (error) {
       console.error(`Error saving answers for test ${sessionId}:`, error);
       throw error;
@@ -129,7 +132,7 @@ export const takingTestService = {
         }
       });
       const data = await response.json();
-      return data.result;
+      return data;
     } catch (error) {
       console.error(`Error submitting test ${sessionId}:`, error);
       throw error;

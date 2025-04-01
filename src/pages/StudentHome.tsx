@@ -70,8 +70,9 @@ const StudentHome = () => {
   
   const formatTimeLimit = (timeLimit: string) => {
     // Convert PT2H30M to 2h 30m
-    const hours = timeLimit.match(/(\d+)H/);
-    const minutes = timeLimit.match(/(\d+)M/);
+    let minutes = Number.parseInt(timeLimit);
+    const hours = minutes/60;
+    minutes = minutes % 60;
     
     let result = '';
     if (hours) result += `${hours[1]} giờ `;
@@ -143,8 +144,8 @@ const StudentHome = () => {
                   return (
                     <TableRow key={session.sessionId}>
                       <TableCell className="font-medium">#{session.sessionId}</TableCell>
-                      <TableCell>{formatDateTime(session.startTime)}</TableCell>
-                      <TableCell>{formatTimeLimit(session.timeLimit)}</TableCell>
+                      <TableCell>{session.startTime}</TableCell>
+                      <TableCell>{session.timeLimit}</TableCell>
                       <TableCell>
                         {isAvailable ? (
                           <span className="text-green-600 font-medium">Đã bắt đầu</span>

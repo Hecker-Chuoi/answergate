@@ -74,11 +74,9 @@ const SessionDetailsPage = () => {
 
   const formatDuration = (duration: string) => {
     // Parse ISO 8601 duration like PT2H30M
-    const hourMatch = duration.match(/(\d+)H/);
-    const minuteMatch = duration.match(/(\d+)M/);
-    
-    const hours = hourMatch ? parseInt(hourMatch[1]) : 0;
-    const minutes = minuteMatch ? parseInt(minuteMatch[1]) : 0;
+    let minutes = Number.parseInt(duration);
+    let hours = Math.floor(minutes / 60);
+    minutes = minutes % 60;
     
     if (hours > 0 && minutes > 0) {
       return `${hours} giờ ${minutes} phút`;
@@ -182,7 +180,7 @@ const SessionDetailsPage = () => {
                       <span className="text-sm">Thời gian bắt đầu</span>
                     </div>
                     <p className="font-medium">
-                      {format(new Date(session.startTime), 'PPpp', { locale: vi })}
+                      {session.startTime}
                     </p>
                   </div>
                   
@@ -208,7 +206,7 @@ const SessionDetailsPage = () => {
                       <span className="text-sm">Cập nhật lần cuối</span>
                     </div>
                     <p className="font-medium">
-                      {format(new Date(session.lastEditTime), 'Pp', { locale: vi })}
+                      {session.lastEditTime}
                     </p>
                   </div>
                 </div>
@@ -380,15 +378,13 @@ const SessionDetailsPage = () => {
                             </div>
                           </TableCell>
                           <TableCell className="font-medium">
-                            {result.score.toFixed(2)}
+                            {result.score}
                           </TableCell>
                           <TableCell>
-                            {result.timeTaken ? `${Math.floor(result.timeTaken / 60)} phút` : '-'}
+                            {result.timeTaken}
                           </TableCell>
                           <TableCell>
-                            {result.submitAt
-                              ? format(new Date(result.submitAt), 'Pp', { locale: vi })
-                              : '-'}
+                            {result.submitAt}
                           </TableCell>
                           <TableCell className="text-right">
                             <Button

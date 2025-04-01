@@ -160,14 +160,32 @@ const sessionService = {
   
   assignCandidatesByTypes: async (token: string, sessionId: number, types: string[]): Promise<string> => {
     try {
+      // Ánh xạ các loại hợp lệ
+      const typeMapping: Record<string, string> = {
+        'Chiến sĩ': 'SOLDIER',
+        'Sĩ quan': 'OFFICER',
+        'Chuyên nghiệp': 'PROFESSIONAL'
+      };
+
+      // Lọc và ánh xạ các loại hợp lệ
+      const mappedTypes = types
+        .map(type => typeMapping[type]) // Ánh xạ sang giá trị mới
+        .filter(Boolean); // Loại bỏ giá trị `undefined`
+
+      if (mappedTypes.length === 0) {
+        console.warn(`No valid types provided for session ${sessionId}. Skipping request.`);
+        return 'No valid types';
+      }
+
       const response = await fetch(`${API_URL}/session/${sessionId}/types`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify(types)
+        body: JSON.stringify(mappedTypes)
       });
+
       const data = await response.json();
       return data.result;
     } catch (error) {

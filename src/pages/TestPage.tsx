@@ -34,6 +34,38 @@ const TestPage = () => {
   const [testInfo, setTestInfo] = useState<{ testName: string; subject: string }>({ testName: '', subject: '' });
   const [endTime, setEndTime] = useState<Date | null>(null);
 
+  const calculateEndTimeAndRemaining = (startTimeStr: string, timeLimit: string) => {
+    // Chuyển đổi startTime từ chuỗi "dd/MM/yyyy HH:mm" thành đối tượng Date
+    const [datePart, timePart] = startTimeStr.split(' ');
+    const [day, month, year] = datePart.split('/').map(Number);
+    const [hour, minute] = timePart.split(':').map(Number);
+  
+    const startDate = new Date(year, month - 1, day, hour, minute); // Tháng bắt đầu từ 0
+  
+    // Cộng thêm timeLimit (đơn vị phút)
+    const endDate = new Date(startDate);
+    endDate.setMinutes(endDate.getMinutes() + Number(timeLimit));
+  
+    // Tính thời gian còn lại từ hiện tại đến endTime
+    const now = new Date();
+    const remainingTimeMs = endDate.getTime() - now.getTime();
+    
+    if (remainingTimeMs <= 0) {
+      return {
+        endTime: endDate, 
+        remaining: [0, 0],
+      };
+    }
+  
+    const remainingMinutes = Math.floor(remainingTimeMs / (1000 * 60));
+    const remainingHours = Math.floor(remainingMinutes / 60);
+  
+    return {
+      endTime: endDate,
+      remainings: [remainingHours, remainingMinutes % 60]
+    };
+  };
+
   // Fetch questions and test info when component mounts
   useEffect(() => {
     const fetchTestData = async () => {
@@ -56,29 +88,11 @@ const TestPage = () => {
         });
 
         // Get session info to calculate end time
-        const sessionData = await sessionService.getSession(token, Number(sessionId));
+        const sessionData = await takingTestService.getSession(token, Number(sessionId));
         const timeLimit = sessionData.timeLimit;
         
-        // Parse the time limit (PT2H30M format)
-        let hours = 0;
-        let minutes = 0;
-        
-        const hoursMatch = timeLimit.match(/(\d+)H/);
-        if (hoursMatch) {
-          hours = parseInt(hoursMatch[1], 10);
-        }
-        
-        const minutesMatch = timeLimit.match(/(\d+)M/);
-        if (minutesMatch) {
-          minutes = parseInt(minutesMatch[1], 10);
-        }
-        
-        const totalMinutes = hours * 60 + minutes;
-        
-        // Calculate end time
-        const end = new Date();
-        end.setMinutes(end.getMinutes() + totalMinutes);
-        setEndTime(end);
+        const {endTime, remainings} = calculateEndTimeAndRemaining(sessionData.startTime, timeLimit);
+        setEndTime(endTime);
 
         setLoading(false);
       } catch (error) {
@@ -91,11 +105,30 @@ const TestPage = () => {
     fetchTestData();
   }, [sessionId, navigate]);
 
-  const handleAnswerChange = (questionId: number, answer: string) => {
-    setUserAnswers(prev => ({
-      ...prev,
-      [questionId]: answer
-    }));
+  const handleAnswerChange = (questionId: number, answerIndex: number, questionType: 'single_choice' | 'multiple_choice', totalAnswers: number) => {
+    setUserAnswers(prev => {
+      if (questionType === 'single_choice') {
+        // Với single_choice, chỉ cho phép chọn một đáp án (chỉ có 1 ký tự '1')
+        let newAnswer = '0'.repeat(totalAnswers).split('');
+        newAnswer[answerIndex] = '1';
+        return {
+          ...prev,
+          [questionId]: newAnswer.join('')
+        };
+      } else {
+        // Với multiple_choice, cho phép bật/tắt đáp án
+        let currentAnswer = prev[questionId] || '0'.repeat(totalAnswers);
+        let newAnswer =
+          currentAnswer.substring(0, answerIndex) +
+          (currentAnswer[answerIndex] === '1' ? '0' : '1') +
+          currentAnswer.substring(answerIndex + 1);
+  
+        return {
+          ...prev,
+          [questionId]: newAnswer
+        };
+      }
+    });
   };
 
   const handleMarkQuestion = (questionId: number) => {
@@ -126,7 +159,7 @@ const TestPage = () => {
 
   const saveProgress = async () => {
     if (saving) return;
-    
+  
     try {
       setSaving(true);
       const token = localStorage.getItem('token');
@@ -134,44 +167,58 @@ const TestPage = () => {
         navigate('/login');
         return;
       }
-      
-      const answers = convertToCandidateAnswerRequests();
-      await takingTestService.saveAnswers(token, Number(sessionId), answers);
-      toast.success('Đã lưu tiến trình làm bài');
+  
+      const answers = Object.entries(userAnswers).map(([questionId, answerChosen]) => ({
+        questionId: parseInt(questionId, 10),
+        answerChosen
+      }));
+  
+      const response = await takingTestService.saveAnswers(token, Number(sessionId), answers);
+  
+      if (response.statusCode === 0) {
+        toast.success('Đã lưu tiến trình làm bài');
+      } else {
+        toast.error(response.message);
+      }
     } catch (error) {
       console.error('Error saving progress:', error);
       toast.error('Không thể lưu tiến trình làm bài');
     } finally {
       setSaving(false);
     }
-  };
+  };  
 
   const handleSubmit = async () => {
     if (submitting) return;
-    
+  
     try {
       setSubmitting(true);
-      
-      // First save progress
+  
+      // Lưu tiến trình trước khi nộp bài
       await saveProgress();
-      
-      // Then submit test using takingTestService
+  
       const token = localStorage.getItem('token');
       if (!token) {
         navigate('/login');
         return;
       }
-      
-      await takingTestService.submitTest(token, Number(sessionId));
-      
-      toast.success('Nộp bài thành công');
-      navigate('/student-home');
+  
+      const response = await takingTestService.submitTest(token, Number(sessionId));
+  
+      if (response.statusCode === 0) {
+        toast.success('Nộp bài thành công');
+        navigate('/student-home');
+      } else {
+        toast.error(response.message);
+      }
     } catch (error) {
       console.error('Error submitting test:', error);
       toast.error('Không thể nộp bài');
+    } finally {
       setSubmitting(false);
     }
   };
+  
 
   const handleTimeUp = async () => {
     toast.warning('Hết thời gian làm bài!');

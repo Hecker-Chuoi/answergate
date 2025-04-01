@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { sessionService } from '@/services/sessionService';
@@ -28,19 +27,18 @@ const TestConfirmation = () => {
           navigate('/login');
           return;
         }
-        
-        // Get test information for this session using takingTestService
+
+        // Gọi API lấy thông tin bài thi và phiên thi
         const testData = await takingTestService.getTest(token, Number(sessionId));
-        setTest(testData);
-        
-        // Get session information to know startTime and timeLimit
         const session = await takingTestService.getSession(token, Number(sessionId));
-        setSessionData(session);  
-        
-        // Calculate time difference to start
+
+        setTest(testData);
+        setSessionData(session);
+
+        // Xử lý thời gian bắt đầu
         const startTime = new Date(session.startTime);
         const now = new Date();
-        
+
         if (startTime > now) {
           setTimeToStart(differenceInSeconds(startTime, now));
           setCanStart(false);
@@ -48,7 +46,7 @@ const TestConfirmation = () => {
           setTimeToStart(0);
           setCanStart(true);
         }
-        
+
         setLoading(false);
       } catch (error) {
         console.error('Error fetching test data:', error);
@@ -56,27 +54,27 @@ const TestConfirmation = () => {
         navigate('/student-home');
       }
     };
-    
+
     fetchTestData();
-    
-    // Set up timer to update the time to start
+
+    // Cập nhật thời gian còn lại để bắt đầu
     const timer = setInterval(() => {
-      if (sessionData) {
-        const startTime = new Date(sessionData.startTime);
-        const now = new Date();
-        
-        if (startTime <= now) {
-          setTimeToStart(0);
-          setCanStart(true);
-          clearInterval(timer);
-        } else {
-          setTimeToStart(differenceInSeconds(startTime, now));
-        }
+      if (!sessionData) return;
+
+      const startTime = new Date(sessionData.startTime);
+      const now = new Date();
+
+      if (startTime <= now) {
+        setTimeToStart(0);
+        setCanStart(true);
+        clearInterval(timer);
+      } else {
+        setTimeToStart(differenceInSeconds(startTime, now));
       }
     }, 1000);
-    
+
     return () => clearInterval(timer);
-  }, [sessionId, navigate, sessionData]);
+  }, [sessionId, navigate]);
 
   const handleStartTest = async () => {
     try {
@@ -85,15 +83,18 @@ const TestConfirmation = () => {
         navigate('/login');
         return;
       }
-      
-      // Call the API to start the test using takingTestService
-      await takingTestService.startTest(token, Number(sessionId));
-      
-      // Navigate to the test page
-      navigate(`/test/${sessionId}`);
-    } catch (error) {
+
+      // Gọi API start test
+      const response = await takingTestService.startTest(token, Number(sessionId));
+
+      if (response?.statusCode == 0 || response?.statusCode == 405) {
+        navigate(`/test/${sessionId}`);
+      } else {
+        throw new Error(response?.message || 'Không thể bắt đầu bài thi');
+      }
+    } catch (error: any) {
       console.error('Error starting test:', error);
-      toast.error('Không thể bắt đầu bài thi');
+      toast.error(error.response?.data?.message || 'Không thể bắt đầu bài thi');
     }
   };
 
@@ -126,33 +127,6 @@ const TestConfirmation = () => {
     );
   }
 
-  // Format the time limit
-  const formatTimeLimit = (timeLimit: string) => {
-    const hours = timeLimit.match(/(\d+)H/);
-    const minutes = timeLimit.match(/(\d+)M/);
-    
-    let result = '';
-    if (hours) result += `${hours[1]} giờ `;
-    if (minutes) result += `${minutes[1]} phút`;
-    
-    return result.trim();
-  };
-  
-  // Format remaining time
-  const formatRemainingTime = (seconds: number) => {
-    if (!seconds) return '00:00:00';
-    
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    const secs = seconds % 60;
-    
-    return [
-      hours.toString().padStart(2, '0'),
-      minutes.toString().padStart(2, '0'),
-      secs.toString().padStart(2, '0')
-    ].join(':');
-  };
-
   return (
     <div className="container mx-auto py-10">
       <div className="flex justify-end mb-4">
@@ -161,9 +135,7 @@ const TestConfirmation = () => {
       <Card className="max-w-2xl mx-auto">
         <CardHeader className="flex flex-col items-center space-y-2 pb-2">
           <CheckCircle2 className="h-12 w-12 text-green-500" />
-          <CardTitle className="text-2xl font-bold">
-            Thông tin bài thi
-          </CardTitle>
+          <CardTitle className="text-2xl font-bold">Thông tin bài thi</CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="bg-gray-50 p-6 rounded-md border border-gray-200">
@@ -180,7 +152,7 @@ const TestConfirmation = () => {
                 <Clock className="h-5 w-5 text-gray-500 mt-0.5" />
                 <div>
                   <p className="text-sm font-medium text-gray-500">Thời gian làm bài</p>
-                  <p>{formatTimeLimit(sessionData.timeLimit)}</p>
+                  <p>{sessionData.timeLimit} phút</p>
                 </div>
               </div>
               <div className="flex items-start space-x-2">
@@ -199,12 +171,12 @@ const TestConfirmation = () => {
               </div>
             </div>
           </div>
-          
+
           {!canStart && timeToStart !== null && (
             <div className="bg-blue-50 p-4 rounded-md border border-blue-200 text-center">
               <p className="text-blue-700 font-medium mb-2">Thời gian còn lại trước khi bắt đầu</p>
               <div className="text-2xl font-mono font-bold text-blue-800">
-                {formatRemainingTime(timeToStart)}
+                {new Date(timeToStart * 1000).toISOString().substr(11, 8)}
               </div>
             </div>
           )}
@@ -213,11 +185,7 @@ const TestConfirmation = () => {
           <Button variant="outline" onClick={() => navigate('/student-home')}>
             Quay lại
           </Button>
-          <Button 
-            onClick={handleStartTest} 
-            disabled={!canStart}
-            className={canStart ? 'bg-green-600 hover:bg-green-700' : ''}
-          >
+          <Button onClick={handleStartTest} disabled={!canStart}>
             {canStart ? 'Bắt đầu làm bài' : 'Chưa đến thời gian'}
           </Button>
         </CardFooter>

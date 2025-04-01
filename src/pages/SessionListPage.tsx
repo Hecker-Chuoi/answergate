@@ -29,10 +29,18 @@ const SessionListPage = () => {
   const [isCreating, setIsCreating] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [availableTests, setAvailableTests] = useState<any[]>([]);
+  
+  // Hàm lấy thời gian mặc định (thời điểm hiện tại + 5 phút, format dd/MM/yyyy HH:mm)
+  const getDefaultStartTime = () => {
+    const now = new Date();
+    now.setMinutes(now.getMinutes() + 5);
+    return format(now, 'dd/MM/yyyy HH:mm');
+  };
+
   const [newSession, setNewSession] = useState<SessionCreationRequest>({
     testId: 0,
-    startTime: '',
-    timeLimit: 'PT2H00M'
+    startTime: getDefaultStartTime(),
+    timeLimit: '90'
   });
   
   const token = localStorage.getItem('token') || '';
@@ -163,13 +171,13 @@ const SessionListPage = () => {
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     <div className="flex items-center">
                       <Calendar className="h-4 w-4 mr-2 text-gray-400" />
-                      {formatDateTime(session.startTime)}
+                      {session.startTime}
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     <div className="flex items-center">
                       <Clock className="h-4 w-4 mr-2 text-gray-400" />
-                      {formatTimeLimit(session.timeLimit)}
+                      {session.timeLimit}
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -292,7 +300,7 @@ const SessionListPage = () => {
         </DialogContent>
       </Dialog>
       
-      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+      {/* <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Xác nhận xóa</DialogTitle>
@@ -310,6 +318,78 @@ const SessionListPage = () => {
               disabled={isDeleting}
             >
               {isDeleting ? 'Đang xóa...' : 'Xóa phiên thi'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog> */}
+      {/* Dialog Create Session */}
+      <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Tạo phiên thi mới</DialogTitle>
+            <DialogDescription>
+              Điền các thông tin cần thiết để tạo phiên thi mới.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="testId" className="text-right">
+                Bài kiểm tra
+              </Label>
+              <div className="col-span-3">
+                <select
+                  className="border rounded px-2 py-1 w-full"
+                  onChange={(e) => setNewSession(prev => ({ ...prev, testId: Number(e.target.value) }))}
+                >
+                  <option value="">Chọn bài kiểm tra</option>
+                  {availableTests.map((test) => (
+                    <option key={test.testId} value={test.testId}>
+                      {test.testName} - {test.subject}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="startTime" className="text-right">
+                Thời gian bắt đầu
+              </Label>
+              <div className="col-span-3">
+                <Input
+                  id="startTime"
+                  type="text"
+                  placeholder="dd/MM/yyyy HH:mm"
+                  value={newSession.startTime}
+                  onChange={(e) => setNewSession(prev => ({ ...prev, startTime: e.target.value }))}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="timeLimit" className="text-right">
+                Thời gian làm bài (phút)
+              </Label>
+              <div className="col-span-3">
+                <Input
+                  id="timeLimit"
+                  type="number"
+                  placeholder="Nhập số phút"
+                  value={newSession.timeLimit}
+                  onChange={(e) => setNewSession(prev => ({ ...prev, timeLimit: e.target.value }))}
+                />
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => {
+              setShowCreateDialog(false);
+              resetNewSession();
+            }}>
+              Hủy
+            </Button>
+            <Button onClick={handleCreateSession}>
+              Tạo phiên thi
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -22,7 +22,7 @@ const ExamListPage = () => {
   const navigate = useNavigate();
   const [tests, setTests] = useState<Test[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [currentUser, setCurrentUser] = useState<{ role: string } | null>(null);
+  // const [currentUser, setCurrentUser] = useState<{ role: string } | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedTestId, setSelectedTestId] = useState<number | null>(null);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -34,19 +34,12 @@ const ExamListPage = () => {
   });
 
   useEffect(() => {
-    const userStr = sessionStorage.getItem('currentUser');
-    const tokenStr = sessionStorage.getItem('authToken');
+    const token = localStorage.getItem('token');
     
-    if (userStr && tokenStr) {
-      try {
-        const user = JSON.parse(userStr);
-        setCurrentUser(user);
-        fetchTests(tokenStr);
-      } catch (error) {
-        console.error('Error parsing user data:', error);
-        navigate('/login');
-      }
-    } else {
+    try {
+      fetchTests(token);
+    } catch (error) {
+      console.error('Error parsing user data:', error);
       navigate('/login');
     }
   }, [navigate]);
@@ -131,13 +124,6 @@ const ExamListPage = () => {
       (test.subject && test.subject.toLowerCase().includes(searchTerm.toLowerCase()))
     );
   });
-
-  if (!currentUser) return <div>Đang tải...</div>;
-  
-  if (currentUser.role !== 'ADMIN' && currentUser.role !== 'admin') {
-    navigate('/');
-    return null;
-  }
 
   return (
     <div className="container mx-auto p-6">

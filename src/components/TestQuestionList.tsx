@@ -1,8 +1,7 @@
-
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Question } from '@/services/testService';
-import { CheckCircle, CheckCircle2, X, BookmarkIcon } from 'lucide-react';
+import { CheckCircle2, BookmarkIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
@@ -23,102 +22,88 @@ const TestQuestionList: React.FC<TestQuestionListProps> = ({
   onMarkQuestion,
   currentTest
 }) => {
+
   const handleAnswerSelect = (questionId: number, answerIndex: number, questionType: string) => {
-    const answerId = questions.find(q => q.questionId === questionId)?.answers[answerIndex].answerId;
-    if (!answerId) return;
-    
+    const question = questions.find(q => q.questionId === questionId);
+    if (!question) return;
+
+    const totalAnswers = question.answers.length;
+    let currentAnswer = userAnswers[questionId] || '0'.repeat(totalAnswers);
+
     if (questionType === 'SINGLE_CHOICE') {
-      // Single choice - just select this option
-      onAnswerChange(questionId, String(answerId));
+      // Single choice: chỉ lưu duy nhất answerIndex, chuyển đổi thành chuỗi nhị phân
+      const updatedAnswer = '0'.repeat(totalAnswers).split('');
+      updatedAnswer[answerIndex] = '1';
+      onAnswerChange(questionId, updatedAnswer.join(''));
     } else {
-      // Multiple choice - toggle the selection
-      const currentAnswer = userAnswers[questionId] || '';
-      const answerBinary = currentAnswer.split('');
-      
-      // Ensure the binary string is long enough
-      while (answerBinary.length < questions.find(q => q.questionId === questionId)?.answers.length!) {
-        answerBinary.push('0');
-      }
-      
-      // Toggle the selected answer
-      answerBinary[answerIndex] = answerBinary[answerIndex] === '1' ? '0' : '1';
-      onAnswerChange(questionId, answerBinary.join(''));
+      // Multiple choice: toggle đáp án
+      const updatedAnswer = currentAnswer.split('');
+      updatedAnswer[answerIndex] = updatedAnswer[answerIndex] === '1' ? '0' : '1';
+      onAnswerChange(questionId, updatedAnswer.join(''));
     }
   };
 
   const isAnswerSelected = (questionId: number, answerIndex: number): boolean => {
-    const answer = userAnswers[questionId];
-    if (!answer) return false;
-    
-    const question = questions.find(q => q.questionId === questionId);
-    if (!question) return false;
-    
-    if (question.questionType === 'SINGLE_CHOICE') {
-      // For single choice, check if this answer's ID matches the selected one
-      return String(question.answers[answerIndex].answerId) === answer;
-    } else {
-      // For multiple choice, check the binary representation
-      return answer[answerIndex] === '1';
-    }
+    const answer = userAnswers[questionId] || '';
+    return answer[answerIndex] === '1';
   };
 
   return (
     <div className="flex-1 overflow-y-auto pb-16">
       <div className="px-4 py-6 bg-gray-50 border-b sticky top-0 z-10">
-        <h1 className="text-2xl font-bold text-center">{currentTest.testName} - {currentTest.subject}</h1>
+        <h1 className="text-2xl font-bold text-center">
+          {currentTest.testName} - {currentTest.subject}
+        </h1>
       </div>
-      
+
       <div className="container max-w-4xl mx-auto py-8 space-y-8">
         {questions.map((question, qIndex) => (
           <Card key={question.questionId} className="overflow-hidden" id={`question-${question.questionId}`}>
             <CardContent className="p-6 space-y-4">
               <div className="flex items-start justify-between">
-                <h3 className="text-lg font-medium">
-                  Câu {qIndex + 1}
-                </h3>
+                <h3 className="text-lg font-medium">Câu {qIndex + 1}</h3>
                 <Button
                   variant="ghost"
                   size="icon"
-                  onClick={() => onMarkQuestion(question.questionId!)}
+                  onClick={() => onMarkQuestion(question.questionId)}
                   className={cn(
                     "h-8 w-8",
-                    markedQuestions.has(question.questionId!) ? "text-yellow-500" : "text-gray-400"
+                    markedQuestions.has(question.questionId) ? "text-yellow-500" : "text-gray-400"
                   )}
                 >
                   <BookmarkIcon className="h-5 w-5" />
                 </Button>
               </div>
-              
+
               <div className="bg-gray-50 rounded-md p-4">
                 {question.questionText}
               </div>
-              
+
               <div className="pt-2">
                 <p className="text-sm text-gray-500 mb-2">
-                  {question.questionType === 'SINGLE_CHOICE' 
-                    ? 'Chọn một đáp án đúng' 
+                  {question.questionType === 'SINGLE_CHOICE'
+                    ? 'Chọn một đáp án đúng'
                     : 'Chọn một hoặc nhiều đáp án đúng'}
                 </p>
                 <div className="space-y-2">
                   {question.answers.map((answer, aIndex) => (
-                    <div 
+                    <div
                       key={answer.answerId}
                       className={cn(
-                        "flex items-center p-3 rounded-md border border-gray-200 cursor-pointer hover:bg-gray-50",
-                        isAnswerSelected(question.questionId!, aIndex) && "border-primary bg-primary/5"
+                        "flex items-center p-3 rounded-md border cursor-pointer transition",
+                        "hover:bg-gray-50",
+                        isAnswerSelected(question.questionId, aIndex) ? "border-blue-500 bg-blue-50" : "border-gray-200"
                       )}
-                      onClick={() => handleAnswerSelect(question.questionId!, aIndex, question.questionType)}
+                      onClick={() => handleAnswerSelect(question.questionId, aIndex, question.questionType)}
                     >
                       <div className={cn(
-                        "mr-3 flex-shrink-0 h-5 w-5 rounded-sm border",
+                        "mr-3 flex-shrink-0 h-5 w-5 flex items-center justify-center border",
                         question.questionType === 'SINGLE_CHOICE' ? "rounded-full" : "rounded-sm",
-                        isAnswerSelected(question.questionId!, aIndex) 
-                          ? "border-primary bg-primary text-white" 
+                        isAnswerSelected(question.questionId, aIndex) 
+                          ? "border-blue-500 bg-blue-500 text-white" 
                           : "border-gray-300"
                       )}>
-                        {isAnswerSelected(question.questionId!, aIndex) && (
-                          <CheckCircle2 className="h-5 w-5 text-white" />
-                        )}
+                        {isAnswerSelected(question.questionId, aIndex) && <CheckCircle2 className="h-4 w-4 text-white" />}
                       </div>
                       <span>{answer.answerText}</span>
                     </div>
