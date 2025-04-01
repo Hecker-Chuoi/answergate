@@ -25,6 +25,21 @@ export const takingTestService = {
       throw error;
     }
   },
+
+  getSession: async (token: string, sessionId: number): Promise<SessionResponse> => {
+    try {
+      const response = await fetch(`${API_URL}/taking-test/${sessionId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      const data = await response.json();
+      return data.result;
+    } catch (error) {
+      console.error('Error fetching session:', error);
+      throw error;
+    }
+  },
   
   getTest: async (token: string, sessionId: number): Promise<Test> => {
     try {
