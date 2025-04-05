@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/table"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { cn } from "@/lib/utils"
+import UserDetailDialog from '@/components/UserDetailDialog';
 
 const UserManagementPage = () => {
   const [users, setUsers] = useState<User[]>([]);
@@ -136,9 +137,10 @@ const UserManagementPage = () => {
     }
   };
 
-  const handleDeleteUser = async (userId: number) => {
+  const handleDeleteUser = async (username: string) => {
     try {
-      await userService.deleteUser(token, userId.toString());
+      setIsDeleting(true);
+      await userService.deleteUser(token, username);
       toast.success('Xóa người dùng thành công');
       fetchUsers();
     } catch (error) {
@@ -146,6 +148,7 @@ const UserManagementPage = () => {
       toast.error('Không thể xóa người dùng');
     } finally {
       setShowDeleteDialog(false);
+      setIsDeleting(false);
     }
   };
 
@@ -463,9 +466,9 @@ const UserManagementPage = () => {
 
       {selectedUser && (
         <EditUserDialog
+          user={selectedUser}
           open={showEditDialog}
           onOpenChange={setShowEditDialog}
-          user={selectedUser}
           onUpdate={handleUpdateUser}
           onClose={() => {
             setShowEditDialog(false);
@@ -491,7 +494,7 @@ const UserManagementPage = () => {
               variant="destructive"
               onClick={() => {
                 if (selectedUser) {
-                  handleDeleteUser(selectedUser.userId);
+                  handleDeleteUser(selectedUser.username);
                 }
               }}
               disabled={isDeleting}
@@ -504,10 +507,11 @@ const UserManagementPage = () => {
 
       {selectedUser && (
         <UserDetailDialog
-          open={showDetailDialog}
-          onOpenChange={setShowDetailDialog}
-          user={selectedUser!}
+          user={selectedUser}
+          isOpen={showDetailDialog}
           onClose={() => setShowDetailDialog(false)}
+          onUserUpdated={fetchUsers}
+          token={token}
         />
       )}
     </div>
@@ -533,6 +537,35 @@ const EditUserDialog: React.FC<EditUserDialogProps> = ({ user, open, onOpenChang
     hometown: user.hometown || '',
   });
 
+  // Format date to DD/MM/YYYY on component mount
+  useEffect(() => {
+    if (user.dob) {
+      try {
+        const date = new Date(user.dob);
+        if (!isNaN(date.getTime())) {
+          const day = date.getDate().toString().padStart(2, '0');
+          const month = (date.getMonth() + 1).toString().padStart(2, '0');
+          const year = date.getFullYear();
+          setEditForm(prev => ({
+            ...prev,
+            dob: `${day}/${month}/${year}`
+          }));
+        }
+      } catch (e) {
+        console.error("Failed to format date:", e);
+      }
+    }
+    
+    setEditForm(prev => ({
+      ...prev,
+      gender: user.gender as 'MALE' | 'FEMALE' | 'OTHER' || 'MALE',
+      type: user.type || 'Chiến sĩ',
+      mail: user.mail || '',
+      phoneNumber: user.phoneNumber || '',
+      hometown: user.hometown || '',
+    }));
+  }, [user]);
+
   const handleGenderChange = (gender: string) => {
     setEditForm((prev) => ({
       ...prev,
@@ -548,6 +581,12 @@ const EditUserDialog: React.FC<EditUserDialogProps> = ({ user, open, onOpenChang
   };
 
   const handleSubmit = () => {
+    // Validate date format (DD/MM/YYYY)
+    if (editForm.dob && !/^(\d{2})\/(\d{2})\/(\d{4})$/.test(editForm.dob)) {
+      toast.error('Ngày sinh phải có định dạng DD/MM/YYYY');
+      return;
+    }
+    
     onUpdate(user.username, editForm);
   };
 
@@ -566,9 +605,13 @@ const EditUserDialog: React.FC<EditUserDialogProps> = ({ user, open, onOpenChang
               Giới tính
             </Label>
             <div className="col-span-3">
-              <Select onValueChange={handleGenderChange} defaultValue={editForm.gender}>
+              <Select value={editForm.gender} onValueChange={handleGenderChange}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Chọn giới tính" />
+                  <SelectValue placeholder="Chọn giới tính">
+                    {editForm.gender === 'MALE' ? 'Nam' : 
+                     editForm.gender === 'FEMALE' ? 'Nữ' : 
+                     editForm.gender === 'OTHER' ? 'Khác' : 'Chọn giới tính'}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="MALE">Nam</SelectItem>
@@ -585,9 +628,9 @@ const EditUserDialog: React.FC<EditUserDialogProps> = ({ user, open, onOpenChang
             <div className="col-span-3">
               <Input
                 id="dob"
-                type="date"
                 value={editForm.dob}
                 onChange={(e) => setEditForm(prev => ({ ...prev, dob: e.target.value }))}
+                placeholder="DD/MM/YYYY"
                 required
               />
             </div>
@@ -597,7 +640,7 @@ const EditUserDialog: React.FC<EditUserDialogProps> = ({ user, open, onOpenChang
               Loại
             </Label>
             <div className="col-span-3">
-              <Select onValueChange={handleTypeChange} defaultValue={editForm.type}>
+              <Select value={editForm.type} onValueChange={handleTypeChange}>
                 <SelectTrigger>
                   <SelectValue placeholder="Chọn loại" />
                 </SelectTrigger>
@@ -654,67 +697,6 @@ const EditUserDialog: React.FC<EditUserDialogProps> = ({ user, open, onOpenChang
           </Button>
           <Button onClick={handleSubmit} disabled={isUpdating}>
             {isUpdating ? 'Đang cập nhật...' : 'Cập nhật'}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-};
-
-interface UserDetailDialogProps {
-  user: User;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onClose: () => void;
-}
-
-const UserDetailDialog: React.FC<UserDetailDialogProps> = ({ user, open, onOpenChange, onClose }) => {
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>Thông tin chi tiết</DialogTitle>
-          <DialogDescription>
-            Thông tin chi tiết về người dùng.
-          </DialogDescription>
-        </DialogHeader>
-        <div className="space-y-4 py-4">
-          <div className="grid grid-cols-4 items-start gap-4">
-            <Label className="text-right">Họ và tên</Label>
-            <div className="col-span-3 font-medium">{user.fullName}</div>
-          </div>
-          <div className="grid grid-cols-4 items-start gap-4">
-            <Label className="text-right">Tên đăng nhập</Label>
-            <div className="col-span-3 font-medium">{user.username}</div>
-          </div>
-          <div className="grid grid-cols-4 items-start gap-4">
-            <Label className="text-right">Giới tính</Label>
-            <div className="col-span-3 font-medium">{user.gender}</div>
-          </div>
-          <div className="grid grid-cols-4 items-start gap-4">
-            <Label className="text-right">Ngày sinh</Label>
-            <div className="col-span-3 font-medium">{new Date(user.dob).toLocaleDateString()}</div>
-          </div>
-          <div className="grid grid-cols-4 items-start gap-4">
-            <Label className="text-right">Loại</Label>
-            <div className="col-span-3 font-medium">{user.type}</div>
-          </div>
-          <div className="grid grid-cols-4 items-start gap-4">
-            <Label className="text-right">Email</Label>
-            <div className="col-span-3 font-medium">{user.mail || '-'}</div>
-          </div>
-          <div className="grid grid-cols-4 items-start gap-4">
-            <Label className="text-right">Số điện thoại</Label>
-            <div className="col-span-3 font-medium">{user.phoneNumber || '-'}</div>
-          </div>
-          <div className="grid grid-cols-4 items-start gap-4">
-            <Label className="text-right">Quê quán</Label>
-            <div className="col-span-3 font-medium">{user.hometown || '-'}</div>
-          </div>
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
-            Đóng
           </Button>
         </DialogFooter>
       </DialogContent>
