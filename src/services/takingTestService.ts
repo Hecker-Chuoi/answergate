@@ -8,6 +8,12 @@ export interface CandidateAnswerRequest {
   answerChosen: string;
 }
 
+export interface ApiResponse<T> {
+  statusCode: number;
+  message: string;
+  result: T;
+}
+
 const API_URL = 'http://localhost:8080/exam';
 
 export const takingTestService = {
@@ -89,7 +95,7 @@ export const takingTestService = {
     }
   },
   
-  startTest: async (token: string, sessionId: number): Promise<string> => {
+  startTest: async (token: string, sessionId: number): Promise<ApiResponse<string>> => {
     try {
       const response = await fetch(`${API_URL}/taking-test/${sessionId}/start`, {
         method: 'POST',
@@ -105,7 +111,7 @@ export const takingTestService = {
     }
   },
   
-  saveAnswers: async (token: string, sessionId: number, answers: CandidateAnswerRequest[]): Promise<string> => {
+  saveAnswers: async (token: string, sessionId: number, answers: CandidateAnswerRequest[]): Promise<ApiResponse<string>> => {
     try {
       const response = await fetch(`${API_URL}/taking-test/${sessionId}/save-progress`, {
         method: 'POST',
@@ -123,7 +129,7 @@ export const takingTestService = {
     }
   },
   
-  submitTest: async (token: string, sessionId: number): Promise<string> => {
+  submitTest: async (token: string, sessionId: number): Promise<ApiResponse<string>> => {
     try {
       const response = await fetch(`${API_URL}/taking-test/${sessionId}/submit`, {
         method: 'POST',

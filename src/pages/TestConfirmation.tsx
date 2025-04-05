@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { sessionService } from '@/services/sessionService';
@@ -87,10 +88,10 @@ const TestConfirmation = () => {
       // Gọi API start test
       const response = await takingTestService.startTest(token, Number(sessionId));
 
-      if (response?.statusCode == 0 || response?.statusCode == 405) {
+      if (response.statusCode === 0 || response.statusCode === 405) {
         navigate(`/test/${sessionId}`);
       } else {
-        throw new Error(response?.message || 'Không thể bắt đầu bài thi');
+        throw new Error(response.message || 'Không thể bắt đầu bài thi');
       }
     } catch (error: any) {
       console.error('Error starting test:', error);
@@ -139,34 +140,34 @@ const TestConfirmation = () => {
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="bg-gray-50 p-6 rounded-md border border-gray-200">
-            <h2 className="text-xl font-semibold mb-4">{test.testName}</h2>
+            <h2 className="text-xl font-semibold mb-4">{test?.testName}</h2>
             <div className="grid gap-4 md:grid-cols-2">
               <div className="flex items-start space-x-2">
                 <FileText className="h-5 w-5 text-gray-500 mt-0.5" />
                 <div>
                   <p className="text-sm font-medium text-gray-500">Môn học</p>
-                  <p>{test.subject}</p>
+                  <p>{test?.subject}</p>
                 </div>
               </div>
               <div className="flex items-start space-x-2">
                 <Clock className="h-5 w-5 text-gray-500 mt-0.5" />
                 <div>
                   <p className="text-sm font-medium text-gray-500">Thời gian làm bài</p>
-                  <p>{sessionData.timeLimit} phút</p>
+                  <p>{sessionData?.timeLimit} phút</p>
                 </div>
               </div>
               <div className="flex items-start space-x-2">
                 <FileText className="h-5 w-5 text-gray-500 mt-0.5" />
                 <div>
                   <p className="text-sm font-medium text-gray-500">Số câu hỏi</p>
-                  <p>{test.questionCount} câu</p>
+                  <p>{test?.questionCount} câu</p>
                 </div>
               </div>
               <div className="flex items-start space-x-2">
                 <CalendarIcon className="h-5 w-5 text-gray-500 mt-0.5" />
                 <div>
                   <p className="text-sm font-medium text-gray-500">Thời gian bắt đầu</p>
-                  <p>{format(new Date(sessionData.startTime), 'dd/MM/yyyy HH:mm')}</p>
+                  <p>{sessionData?.startTime ? format(new Date(sessionData.startTime), 'dd/MM/yyyy HH:mm') : ''}</p>
                 </div>
               </div>
             </div>
