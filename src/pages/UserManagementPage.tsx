@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { userService, User, UserCreationRequest, UserUpdateRequest } from '@/services/userService';
 import { Button } from '@/components/ui/button';
@@ -26,26 +27,35 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { cn } from "@/lib/utils"
 import UserDetailDialog from '@/components/UserDetailDialog';
+import { Checkbox } from '@/components/ui/checkbox';
+
+// User type constants for mapping between UI and API values
+const USER_TYPES = {
+  'Chiến sĩ': 'SOLDIER',
+  'Sĩ quan': 'OFFICER',
+  'Chuyên nghiệp': 'PROFESSIONAL',
+  'SOLDIER': 'Chiến sĩ',
+  'OFFICER': 'Sĩ quan',
+  'PROFESSIONAL': 'Chuyên nghiệp'
+};
 
 const UserManagementPage = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
-  const [showEditDialog, setShowEditDialog] = useState(false);
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showDetailDialog, setShowDetailDialog] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [isCreating, setIsCreating] = useState(false);
-  const [isUpdating, setIsUpdating] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
   const [userForm, setUserForm] = useState<UserCreationRequest>({
     fullName: '',
     gender: 'MALE',
     dob: '',
-    type: 'Chiến sĩ',
+    type: 'SOLDIER',
     mail: '',
     phoneNumber: '',
     hometown: '',
@@ -85,7 +95,13 @@ const UserManagementPage = () => {
   const handleCreateUser = async () => {
     setIsCreating(true);
     try {
-      const createdUser = await userService.createUser(token, userForm);
+      // Map UI type values to API type values before sending request
+      const requestData = {
+        ...userForm,
+        type: USER_TYPES[userForm.type as keyof typeof USER_TYPES] as string
+      };
+      
+      const createdUser = await userService.createUser(token, requestData);
       const newUser: User = {
         userId: createdUser.userId,
         username: createdUser.username,
@@ -110,44 +126,22 @@ const UserManagementPage = () => {
     }
   };
 
-  const handleUpdateUser = async (username: string, userData: UserUpdateRequest) => {
-    setIsUpdating(true);
-    try {
-      const updatedUser = await userService.updateUser(token, username, userData);
-      const transformedUser: User = {
-        userId: updatedUser.userId,
-        username: updatedUser.username,
-        fullName: updatedUser.fullName || '',
-        dob: updatedUser.dob,
-        gender: updatedUser.gender,
-        phoneNumber: updatedUser.phoneNumber,
-        mail: updatedUser.mail,
-        hometown: updatedUser.hometown,
-        role: updatedUser.role,
-        type: updatedUser.type || 'Không xác định'
-      };
-      setUsers(prev => prev.map(user => user.username === username ? transformedUser : user));
-      toast.success('Cập nhật người dùng thành công');
-      setShowEditDialog(false);
-    } catch (error) {
-      console.error('Error updating user:', error);
-      toast.error('Không thể cập nhật người dùng');
-    } finally {
-      setIsUpdating(false);
+  const handleDeleteSelectedUsers = async () => {
+    if (selectedUsers.length === 0) {
+      toast.error('Hãy chọn ít nhất một người dùng để xóa');
+      return;
     }
-  };
 
-  const handleDeleteUser = async (username: string) => {
     try {
       setIsDeleting(true);
-      await userService.deleteUser(token, username);
+      await userService.deleteMultipleUsers(token, selectedUsers);
       toast.success('Xóa người dùng thành công');
       fetchUsers();
+      setSelectedUsers([]);
     } catch (error) {
-      console.error('Error deleting user:', error);
+      console.error('Error deleting users:', error);
       toast.error('Không thể xóa người dùng');
     } finally {
-      setShowDeleteDialog(false);
       setIsDeleting(false);
     }
   };
@@ -157,7 +151,7 @@ const UserManagementPage = () => {
       fullName: '',
       gender: 'MALE',
       dob: '',
-      type: 'Chiến sĩ',
+      type: 'SOLDIER',
       mail: '',
       phoneNumber: '',
       hometown: '',
@@ -205,6 +199,14 @@ const UserManagementPage = () => {
     fileInputRef.current?.click();
   };
 
+  const toggleUserSelection = (username: string) => {
+    setSelectedUsers(prev => 
+      prev.includes(username)
+        ? prev.filter(u => u !== username)
+        : [...prev, username]
+    );
+  };
+
   const filteredUsers = users.filter(user =>
     user.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
     user.username.toLowerCase().includes(searchTerm.toLowerCase())
@@ -220,7 +222,7 @@ const UserManagementPage = () => {
   const handleTypeChange = (type: string) => {
     setUserForm((prev) => ({
       ...prev,
-      type: type as "Chiến sĩ" | "Sĩ quan" | "Chuyên nghiệp"
+      type
     }));
   };
 
@@ -258,6 +260,12 @@ const UserManagementPage = () => {
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
+        {selectedUsers.length > 0 && (
+          <Button variant="destructive" onClick={handleDeleteSelectedUsers} disabled={isDeleting}>
+            <Trash2 className="h-4 w-4 mr-2" />
+            {isDeleting ? 'Đang xóa...' : `Xóa (${selectedUsers.length})`}
+          </Button>
+        )}
       </div>
 
       {loading ? (
@@ -276,6 +284,7 @@ const UserManagementPage = () => {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-10"></TableHead>
                 <TableHead>Họ và tên</TableHead>
                 <TableHead>Tên đăng nhập</TableHead>
                 <TableHead>Loại</TableHead>
@@ -289,6 +298,12 @@ const UserManagementPage = () => {
             <TableBody>
               {filteredUsers.map(user => (
                 <TableRow key={user.userId}>
+                  <TableCell className="p-2">
+                    <Checkbox 
+                      checked={selectedUsers.includes(user.username)}
+                      onCheckedChange={() => toggleUserSelection(user.username)}
+                    />
+                  </TableCell>
                   <TableCell>{user.fullName}</TableCell>
                   <TableCell>{user.username}</TableCell>
                   <TableCell>{user.type}</TableCell>
@@ -300,7 +315,6 @@ const UserManagementPage = () => {
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="mr-2"
                       onClick={() => {
                         setSelectedUser(user);
                         setShowDetailDialog(true);
@@ -308,30 +322,6 @@ const UserManagementPage = () => {
                     >
                       <Eye className="h-4 w-4 mr-1" />
                       Chi tiết
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="mr-2"
-                      onClick={() => {
-                        setSelectedUser(user);
-                        setShowEditDialog(true);
-                      }}
-                    >
-                      <Edit className="h-4 w-4 mr-1" />
-                      Sửa
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="text-red-600 hover:text-red-800 hover:bg-red-50"
-                      onClick={() => {
-                        setSelectedUser(user);
-                        setShowDeleteDialog(true);
-                      }}
-                    >
-                      <Trash2 className="h-4 w-4 mr-1" />
-                      Xóa
                     </Button>
                   </TableCell>
                 </TableRow>
@@ -387,7 +377,7 @@ const UserManagementPage = () => {
               <div className="col-span-3">
                 <Input
                   id="dob"
-                  type="date"
+                  placeholder="DD/MM/YYYY"
                   value={userForm.dob}
                   onChange={(e) => setUserForm(prev => ({ ...prev, dob: e.target.value }))}
                   required
@@ -404,9 +394,9 @@ const UserManagementPage = () => {
                     <SelectValue placeholder="Chọn loại" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Chiến sĩ">Chiến sĩ</SelectItem>
-                    <SelectItem value="Sĩ quan">Sĩ quan</SelectItem>
-                    <SelectItem value="Chuyên nghiệp">Chuyên nghiệp</SelectItem>
+                    <SelectItem value="SOLDIER">Chiến sĩ</SelectItem>
+                    <SelectItem value="OFFICER">Sĩ quan</SelectItem>
+                    <SelectItem value="PROFESSIONAL">Chuyên nghiệp</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -465,47 +455,6 @@ const UserManagementPage = () => {
       </Dialog>
 
       {selectedUser && (
-        <EditUserDialog
-          user={selectedUser}
-          open={showEditDialog}
-          onOpenChange={setShowEditDialog}
-          onUpdate={handleUpdateUser}
-          onClose={() => {
-            setShowEditDialog(false);
-            setSelectedUser(null);
-          }}
-          isUpdating={isUpdating}
-        />
-      )}
-
-      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Xác nhận xóa</DialogTitle>
-            <DialogDescription>
-              Bạn có chắc chắn muốn xóa người dùng này? Hành động này không thể hoàn tác.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowDeleteDialog(false)}>
-              Hủy
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={() => {
-                if (selectedUser) {
-                  handleDeleteUser(selectedUser.username);
-                }
-              }}
-              disabled={isDeleting}
-            >
-              {isDeleting ? 'Đang xóa...' : 'Xóa người dùng'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {selectedUser && (
         <UserDetailDialog
           user={selectedUser}
           isOpen={showDetailDialog}
@@ -515,192 +464,6 @@ const UserManagementPage = () => {
         />
       )}
     </div>
-  );
-};
-
-interface EditUserDialogProps {
-  user: User;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onUpdate: (username: string, userData: UserUpdateRequest) => void;
-  onClose: () => void;
-  isUpdating: boolean;
-}
-
-const EditUserDialog: React.FC<EditUserDialogProps> = ({ user, open, onOpenChange, onUpdate, onClose, isUpdating }) => {
-  const [editForm, setEditForm] = useState<UserUpdateRequest>({
-    gender: user.gender as 'MALE' | 'FEMALE' | 'OTHER' || 'MALE',
-    dob: user.dob || '',
-    type: user.type || 'Chiến sĩ',
-    mail: user.mail || '',
-    phoneNumber: user.phoneNumber || '',
-    hometown: user.hometown || '',
-  });
-
-  // Format date to DD/MM/YYYY on component mount
-  useEffect(() => {
-    if (user.dob) {
-      try {
-        const date = new Date(user.dob);
-        if (!isNaN(date.getTime())) {
-          const day = date.getDate().toString().padStart(2, '0');
-          const month = (date.getMonth() + 1).toString().padStart(2, '0');
-          const year = date.getFullYear();
-          setEditForm(prev => ({
-            ...prev,
-            dob: `${day}/${month}/${year}`
-          }));
-        }
-      } catch (e) {
-        console.error("Failed to format date:", e);
-      }
-    }
-    
-    setEditForm(prev => ({
-      ...prev,
-      gender: user.gender as 'MALE' | 'FEMALE' | 'OTHER' || 'MALE',
-      type: user.type || 'Chiến sĩ',
-      mail: user.mail || '',
-      phoneNumber: user.phoneNumber || '',
-      hometown: user.hometown || '',
-    }));
-  }, [user]);
-
-  const handleGenderChange = (gender: string) => {
-    setEditForm((prev) => ({
-      ...prev,
-      gender: gender as "MALE" | "FEMALE" | "OTHER"
-    }));
-  };
-
-  const handleTypeChange = (type: string) => {
-    setEditForm((prev) => ({
-      ...prev,
-      type: type as "Chiến sĩ" | "Sĩ quan" | "Chuyên nghiệp"
-    }));
-  };
-
-  const handleSubmit = () => {
-    // Validate date format (DD/MM/YYYY)
-    if (editForm.dob && !/^(\d{2})\/(\d{2})\/(\d{4})$/.test(editForm.dob)) {
-      toast.error('Ngày sinh phải có định dạng DD/MM/YYYY');
-      return;
-    }
-    
-    onUpdate(user.username, editForm);
-  };
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>Chỉnh sửa người dùng</DialogTitle>
-          <DialogDescription>
-            Chỉnh sửa thông tin người dùng.
-          </DialogDescription>
-        </DialogHeader>
-        <div className="space-y-4 py-4">
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="gender" className="text-right">
-              Giới tính
-            </Label>
-            <div className="col-span-3">
-              <Select value={editForm.gender} onValueChange={handleGenderChange}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Chọn giới tính">
-                    {editForm.gender === 'MALE' ? 'Nam' : 
-                     editForm.gender === 'FEMALE' ? 'Nữ' : 
-                     editForm.gender === 'OTHER' ? 'Khác' : 'Chọn giới tính'}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="MALE">Nam</SelectItem>
-                  <SelectItem value="FEMALE">Nữ</SelectItem>
-                  <SelectItem value="OTHER">Khác</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="dob" className="text-right">
-              Ngày sinh
-            </Label>
-            <div className="col-span-3">
-              <Input
-                id="dob"
-                value={editForm.dob}
-                onChange={(e) => setEditForm(prev => ({ ...prev, dob: e.target.value }))}
-                placeholder="DD/MM/YYYY"
-                required
-              />
-            </div>
-          </div>
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="type" className="text-right">
-              Loại
-            </Label>
-            <div className="col-span-3">
-              <Select value={editForm.type} onValueChange={handleTypeChange}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Chọn loại" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Chiến sĩ">Chiến sĩ</SelectItem>
-                  <SelectItem value="Sĩ quan">Sĩ quan</SelectItem>
-                  <SelectItem value="Chuyên nghiệp">Chuyên nghiệp</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="mail" className="text-right">
-              Email
-            </Label>
-            <div className="col-span-3">
-              <Input
-                id="mail"
-                type="email"
-                value={editForm.mail || ''}
-                onChange={(e) => setEditForm(prev => ({ ...prev, mail: e.target.value }))}
-              />
-            </div>
-          </div>
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="phoneNumber" className="text-right">
-              Số điện thoại
-            </Label>
-            <div className="col-span-3">
-              <Input
-                id="phoneNumber"
-                type="tel"
-                value={editForm.phoneNumber || ''}
-                onChange={(e) => setEditForm(prev => ({ ...prev, phoneNumber: e.target.value }))}
-              />
-            </div>
-          </div>
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="hometown" className="text-right">
-              Quê quán
-            </Label>
-            <div className="col-span-3">
-              <Input
-                id="hometown"
-                value={editForm.hometown || ''}
-                onChange={(e) => setEditForm(prev => ({ ...prev, hometown: e.target.value }))}
-              />
-            </div>
-          </div>
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
-            Hủy
-          </Button>
-          <Button onClick={handleSubmit} disabled={isUpdating}>
-            {isUpdating ? 'Đang cập nhật...' : 'Cập nhật'}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
   );
 };
 

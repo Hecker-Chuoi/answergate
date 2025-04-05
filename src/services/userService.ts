@@ -1,3 +1,4 @@
+
 // Define API URL
 const API_URL = 'http://localhost:8080/exam';
 
@@ -172,6 +173,24 @@ const userService = {
       return data.result;
     } catch (error) {
       console.error(`Error deleting user ${username}:`, error);
+      throw error;
+    }
+  },
+  
+  deleteMultipleUsers: async (token: string, usernames: string[]): Promise<string> => {
+    try {
+      const response = await fetch(`${API_URL}/user/delete`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(usernames)
+      });
+      const data = await response.json();
+      return data.result;
+    } catch (error) {
+      console.error('Error deleting multiple users:', error);
       throw error;
     }
   },

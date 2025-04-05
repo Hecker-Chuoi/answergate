@@ -15,6 +15,16 @@ import { User, UserUpdateRequest, userService } from '@/services/userService';
 import { toast } from 'sonner';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
+// User type constants for mapping between UI and API values
+const USER_TYPES = {
+  'Chiến sĩ': 'SOLDIER',
+  'Sĩ quan': 'OFFICER',
+  'Chuyên nghiệp': 'PROFESSIONAL',
+  'SOLDIER': 'Chiến sĩ',
+  'OFFICER': 'Sĩ quan',
+  'PROFESSIONAL': 'Chuyên nghiệp'
+};
+
 interface UserDetailDialogProps {
   user: User | null;
   isOpen: boolean;
@@ -31,18 +41,18 @@ const UserDetailDialog = ({ user, isOpen, onClose, onUserUpdated, token }: UserD
     phoneNumber: '',
     mail: '',
     hometown: '',
-    type: 'Chiến sĩ' // Default to prevent "" type error
+    type: 'SOLDIER' // Default to prevent "" type error
   });
 
   React.useEffect(() => {
     if (user) {
       setUserUpdateData({
         dob: user.dob || '',
-        gender: user.gender as 'MALE' | 'FEMALE' | 'OTHER' || 'MALE',
+        gender: user.gender === 'Nam' ? 'MALE' : user.gender === 'Nữ' ? 'FEMALE' : 'OTHER',
         phoneNumber: user.phoneNumber || '',
         mail: user.mail || '',
         hometown: user.hometown || '',
-        type: user.type || 'Chiến sĩ'
+        type: USER_TYPES[user.type as keyof typeof USER_TYPES] || 'SOLDIER'
       });
     }
   }, [user]);
@@ -57,13 +67,20 @@ const UserDetailDialog = ({ user, isOpen, onClose, onUserUpdated, token }: UserD
     }
 
     try {
-      const result = await userService.updateUser(token, user.username, userUpdateData);
+      const requestData = {
+        ...userUpdateData,
+        type: userUpdateData.type
+      };
+      
+      const result = await userService.updateUser(token, user.username, requestData);
       if (result) {
         setIsEditing(false);
         onUserUpdated();
+        toast.success('Cập nhật thông tin người dùng thành công');
       }
     } catch (error) {
       console.error('Error updating user:', error);
+      toast.error('Không thể cập nhật thông tin người dùng');
     }
   };
 
@@ -149,11 +166,7 @@ const UserDetailDialog = ({ user, isOpen, onClose, onUserUpdated, token }: UserD
                 </Select>
               </div>
             ) : (
-              <div className="col-span-3">
-                {user.gender === 'MALE' ? 'Nam' : 
-                 user.gender === 'FEMALE' ? 'Nữ' : 
-                 user.gender === 'OTHER' ? 'Khác' : '-'}
-              </div>
+              <div className="col-span-3">{user.gender || '-'}</div>
             )}
           </div>
           
@@ -192,7 +205,7 @@ const UserDetailDialog = ({ user, isOpen, onClose, onUserUpdated, token }: UserD
               <div className="col-span-3">
                 <Select 
                   value={userUpdateData.type} 
-                  onValueChange={(value: 'Chiến sĩ' | 'Sĩ quan' | 'Chuyên nghiệp') => 
+                  onValueChange={(value) => 
                     setUserUpdateData({...userUpdateData, type: value})
                   }
                 >
@@ -200,9 +213,9 @@ const UserDetailDialog = ({ user, isOpen, onClose, onUserUpdated, token }: UserD
                     <SelectValue placeholder="Chọn loại" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Chiến sĩ">Chiến sĩ</SelectItem>
-                    <SelectItem value="Sĩ quan">Sĩ quan</SelectItem>
-                    <SelectItem value="Chuyên nghiệp">Chuyên nghiệp</SelectItem>
+                    <SelectItem value="SOLDIER">Chiến sĩ</SelectItem>
+                    <SelectItem value="OFFICER">Sĩ quan</SelectItem>
+                    <SelectItem value="PROFESSIONAL">Chuyên nghiệp</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
