@@ -293,7 +293,7 @@ const UserManagementPage = () => {
                   <TableCell>{user.username}</TableCell>
                   <TableCell>{user.type}</TableCell>
                   <TableCell>{user.gender}</TableCell>
-                  <TableCell>{new Date(user.dob).toLocaleDateString()}</TableCell>
+                  <TableCell>{user.dob}</TableCell>
                   <TableCell>{user.mail || '-'}</TableCell>
                   <TableCell>{user.phoneNumber || '-'}</TableCell>
                   <TableCell className="text-right">
