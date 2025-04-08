@@ -170,7 +170,7 @@ const TestQuestionEditor: React.FC<TestQuestionEditorProps> = ({ testId, token }
         </Button>
       </div>
       
-      <Card className="mb-6">
+      {/* <Card className="mb-6">
         <CardHeader>
           <CardTitle className="flex justify-between">
             <span>Thông tin bài kiểm tra</span>
@@ -251,7 +251,7 @@ const TestQuestionEditor: React.FC<TestQuestionEditorProps> = ({ testId, token }
             </div>
           )}
         </CardContent>
-      </Card>
+      </Card> */}
       
       <div className="flex flex-col md:flex-row h-[calc(100vh-24rem)]">
         <div className="w-full md:w-64 mb-4 md:mb-0">
