@@ -1,4 +1,6 @@
 
+import { config } from '@/config';
+
 // Standardized API Response type matching backend structure
 type ApiResponse<T> = {
   statusCode: number;
@@ -28,7 +30,7 @@ type UserInfo = {
   type?: string;
 };
 
-const API_URL = 'http://localhost:8080/exam';
+const API_URL = config.apiUrl;
 
 export const authService = {
   login: async (username: string, password: string): Promise<ApiResponse<AuthResult>> => {

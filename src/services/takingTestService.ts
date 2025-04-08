@@ -1,4 +1,5 @@
 
+import { config } from '@/config';
 import { Test, Question } from './testService';
 import { SessionResponse } from './sessionService';
 import { ResultResponse } from './sessionService';
@@ -14,7 +15,7 @@ export interface ApiResponse<T> {
   result: T;
 }
 
-const API_URL = 'http://localhost:8080/exam';
+const API_URL = config.apiUrl;
 
 export const takingTestService = {
   getUpcomingSessions: async (token: string): Promise<SessionResponse[]> => {

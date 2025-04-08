@@ -1,4 +1,4 @@
-
+import { config } from '@/config';
 import { User, UserResponse } from './userService';
 import { Test, Question } from './testService';
 
@@ -55,7 +55,7 @@ export interface CandidateResult {
 }
 
 // Define API URL
-const API_URL = 'http://localhost:8080/exam';
+const API_URL = config.apiUrl;
 
 const sessionService = {
   getAllSessions: async (token: string): Promise<SessionResponse[]> => {

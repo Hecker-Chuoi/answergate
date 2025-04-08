@@ -1,6 +1,7 @@
+import { config } from '@/config';
 
 // Define API URL
-const API_URL = 'http://localhost:8080/exam';
+const API_URL = config.apiUrl;
 
 export interface UserCreationRequest {
   fullName: string;
