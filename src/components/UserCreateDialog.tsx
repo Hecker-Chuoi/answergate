@@ -53,7 +53,7 @@ const UserCreateDialog = ({ isOpen, onClose, onSubmit, isSubmitting }: UserCreat
   const handleTypeChange = (type: string) => {
     setUserForm((prev) => ({
       ...prev,
-      type
+      type: type as "SOLDIER" | "OFFICER" | "PROFESSIONAL"
     }));
   };
 

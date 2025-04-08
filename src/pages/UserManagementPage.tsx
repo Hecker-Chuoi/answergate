@@ -56,12 +56,7 @@ const UserManagementPage = () => {
     setIsCreating(true);
     try {
       // Map UI type values to API type values before sending request
-      const requestData = {
-        ...userData,
-        type: mapTypeToApi(userData.type)
-      };
-      
-      const createdUser = await userService.createUser(token, requestData);
+      const createdUser = await userService.createUser(token, userData);
       const newUser: User = {
         userId: createdUser.userId,
         username: createdUser.username,
