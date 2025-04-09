@@ -20,6 +20,15 @@ const TestConfirmation = () => {
   const [timeToStart, setTimeToStart] = useState<number | null>(null);
   const [canStart, setCanStart] = useState(false);
 
+  const parseDate = (str: string): Date => {
+    const [datePart, timePart] = str.split(' ')
+    const [day, month, year] = datePart.split('/').map(Number)
+    const [hours, minutes] = timePart.split(':').map(Number)
+  
+    // Lưu ý: tháng trong JavaScript bắt đầu từ 0 (0 = tháng 1)
+    return new Date(year, month - 1, day, hours, minutes)
+  } 
+
   useEffect(() => {
     const fetchTestData = async () => {
       try {
@@ -37,7 +46,7 @@ const TestConfirmation = () => {
         setSessionData(session);
 
         // Xử lý thời gian bắt đầu
-        const startTime = new Date(session.startTime);
+        const startTime = parseDate(session.startTime);
         const now = new Date();
 
         if (startTime > now) {
@@ -62,7 +71,7 @@ const TestConfirmation = () => {
     const timer = setInterval(() => {
       if (!sessionData) return;
 
-      const startTime = new Date(sessionData.startTime);
+      const startTime = parseDate(sessionData.startTime);
       const now = new Date();
 
       if (startTime <= now) {

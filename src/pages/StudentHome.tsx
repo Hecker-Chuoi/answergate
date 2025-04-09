@@ -80,6 +80,15 @@ const StudentHome = () => {
     
     return result.trim() || 'Không xác định';
   };
+
+  const parseDate = (str: string): Date => {
+    const [datePart, timePart] = str.split(' ')
+    const [day, month, year] = datePart.split('/').map(Number)
+    const [hours, minutes] = timePart.split(':').map(Number)
+  
+    // Lưu ý: tháng trong JavaScript bắt đầu từ 0 (0 = tháng 1)
+    return new Date(year, month - 1, day, hours, minutes)
+  }  
   
   const handleViewTest = async (sessionId: number) => {
     try {
@@ -138,7 +147,7 @@ const StudentHome = () => {
               </TableHeader>
               <TableBody>
                 {upcomingSessions.map((session) => {
-                  const startTime = new Date(session.startTime);
+                  const startTime = parseDate(session.startTime);
                   const isAvailable = startTime <= new Date();
                   
                   return (
